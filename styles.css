@@ -124,3 +124,17 @@
 #payment-choice .payment-option strong{font-size:13px;color:#f5f1e9}
 #payment-choice .payment-option small{font-size:11px;color:#c9cbd1;line-height:1.5}
 #pix-upload-field[hidden]{display:none!important}
+
+/* Inscrição progressiva: somente dois botões inicialmente. */
+.registration-open-actions{display:grid;gap:13px}
+.registration-open-actions .tiny{margin:0;text-align:center}
+.registration-open-actions .btn{min-height:54px;white-space:normal;text-align:center}
+#registration-form.hidden{display:none!important}
+#registration-form #payment-choice[hidden],
+#registration-form #sheet-responsible-field[hidden],
+#registration-form #sheet-payment-info[hidden],
+#registration-pix-details[hidden]{display:none!important}
+.registration-back{display:block;margin:15px auto 2px;border:0;background:none;color:var(--gold2);text-decoration:underline;font-size:12px;padding:8px;cursor:pointer}
+#sheet-responsible-field{margin-top:16px}
+#sheet-payment-info{padding:12px 14px;border:1px solid var(--line);border-radius:5px;background:#192439}
+@media(max-width:540px){.registration-open-actions .btn{font-size:11px;padding:15px 12px}}
