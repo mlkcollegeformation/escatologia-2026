@@ -7,3 +7,15 @@
 .portaria-actions .portaria-whatsapp{background:#227b5a;color:#fff}
 
 .portaria-destination{display:block;font-size:11px;color:#f0d5a2;overflow-wrap:anywhere;padding:4px 0}
+
+/* Abas por responsável pela ficha de inscrição */
+.responsible-section{margin:20px 0 18px}
+.responsible-section h2{font-size:14px;letter-spacing:.11em;color:var(--gold2);margin:0 0 10px}
+.responsible-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:9px;margin:14px 0}
+.responsible-tab{display:flex;align-items:center;justify-content:space-between;text-align:left;gap:9px;padding:12px 13px;min-height:54px;border:1px solid #58617a;background:#141f31;color:#f0e6d2;border-radius:5px;font:600 11px Montserrat,Arial,sans-serif;cursor:pointer}
+.responsible-tab:hover,.responsible-tab:focus-visible{border-color:var(--gold2)}
+.responsible-tab.selected{border-color:#deb972;background:#3b3022;color:#fff3d1}
+.responsible-tab-count{min-width:28px;text-align:center;background:#4b556b;border-radius:12px;padding:5px 7px;font-size:12px}
+.responsible-tab.selected .responsible-tab-count{background:#9c7840;color:#fff}
+.responsible-count{font:500 12px Montserrat,Arial,sans-serif;color:var(--gold2);margin-top:10px}
+@media(max-width:750px){.responsible-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.responsible-tab{font-size:10px;padding:10px}.responsible-section{margin-top:20px}}
