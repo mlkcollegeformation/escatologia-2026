@@ -48,7 +48,7 @@ function portariaControls(cell,r){
  cell.append(wrap);
 }
 
-const responsibleNames=["Adriano Dani","Deivisson Gomes","Ev Rodrigo Gomes","Fernando Guilherme","Glauber","Manoel Borges","Matheus Oliveira","PB. Wellington Menezes","Pr Ivo Becca","Pr. Arnaldo"];
+const responsibleNames=["Adriano Dani","Deivisson Gomes","Ev Rodrigo Gomes","Fernando Guilherme","Glauber","Manoel Borges","Matheus Oliveira","PB. Wellington Menezes","Pr Ivo Becca","Pr. Arnaldo","Wanderson"];
 let activeResponsible="all";
 const normalizeResponsible=value=>clean(value).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]+/g," ").trim().toLowerCase();
 function responsibleKey(value){
