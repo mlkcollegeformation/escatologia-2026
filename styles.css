@@ -113,3 +113,14 @@
 
 /* Payment method & registration downloads */
 .payment-choice{border:1px solid var(--line);padding:16px;margin:0 0 18px;border-radius:5px}.payment-choice legend{color:var(--gold2);font-size:12px;font-weight:700;padding:0 8px}.payment-option{display:flex;align-items:center;gap:11px;margin:10px 0;font-size:12px;cursor:pointer}.payment-option input{accent-color:var(--gold);width:18px;height:18px;flex:none}.download-actions{display:grid;gap:10px;margin:19px 0}.download-actions .btn{width:100%}#pix-upload-field[hidden],.payment-details[hidden]{display:none!important}input[type=file]{font-size:12px;max-width:100%}
+
+/* Seleção de pagamento claramente visível no celular e no desktop */
+#registration-form #payment-choice{display:block!important;visibility:visible!important;opacity:1!important;background:#101929;border:1px solid #d5b16b;border-radius:8px;padding:18px;margin:18px 0 22px;min-width:0}
+#payment-choice legend{font-size:12px;font-weight:800;letter-spacing:.06em;color:#f2dfad}
+#payment-choice .payment-option{display:flex!important;align-items:center!important;gap:13px;padding:15px 12px;margin:11px 0!important;border:1px solid #526078;background:#172235;border-radius:6px;color:#f5f1e9;cursor:pointer}
+#payment-choice .payment-option.selected{border-color:#d5b16b;background:#243044}
+#payment-choice .payment-option input{width:20px;height:20px;flex-shrink:0;margin:0;accent-color:#d5b16b}
+#payment-choice .payment-option span{display:grid;gap:4px;flex:1;min-width:0}
+#payment-choice .payment-option strong{font-size:13px;color:#f5f1e9}
+#payment-choice .payment-option small{font-size:11px;color:#c9cbd1;line-height:1.5}
+#pix-upload-field[hidden]{display:none!important}
