@@ -138,3 +138,9 @@
 #sheet-responsible-field{margin-top:16px}
 #sheet-payment-info{padding:12px 14px;border:1px solid var(--line);border-radius:5px;background:#192439}
 @media(max-width:540px){.registration-open-actions .btn{font-size:11px;padding:15px 12px}}
+
+/* Orientação em destaque após a conclusão da inscrição */
+.registration-download-notice{display:flex;align-items:center;gap:18px;padding:22px 20px;margin:25px 0 17px;border:2px solid var(--gold);border-radius:9px;background:linear-gradient(120deg,rgba(213,177,107,.15),rgba(213,177,107,.035));box-shadow:0 0 25px rgba(213,177,107,.08)}
+.registration-download-notice strong{display:block;color:var(--gold2);font-family:Montserrat,Arial,sans-serif;font-size:clamp(16px,2vw,21px);line-height:1.5;letter-spacing:.025em;text-transform:uppercase}
+.registration-download-icon{display:flex;flex:0 0 50px;align-items:center;justify-content:center;width:50px;height:50px;border-radius:50%;background:var(--gold);color:#090e1b;font-size:30px;font-weight:800}
+@media(max-width:540px){.registration-download-notice{padding:17px 14px;gap:12px;align-items:flex-start}.registration-download-notice strong{font-size:16px;line-height:1.45}.registration-download-icon{flex-basis:38px;width:38px;height:38px;font-size:23px}}
