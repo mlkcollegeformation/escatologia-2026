@@ -6,6 +6,7 @@ async function sendPortariaWhatsapp(r){
  if(!r.entrance_receipt_path){setMsg("Anexe primeiro o comprovante da portaria.");return;}
  const phone=whatsappNumber(r.phone);
  if(!phone){setMsg("O WhatsApp do participante não está em formato válido.");return;}
+ if(!confirm("Enviar o comprovante da inscrição "+r.registration_code+" para o WhatsApp cadastrado pelo participante: +"+phone+"?"))return;
  const opened=window.open("about:blank","_blank");
  const {data,error}=await db.storage.from(proofBucket).createSignedUrl(r.entrance_receipt_path,604800);
  if(error||!data?.signedUrl){if(opened)opened.close();setMsg("Não foi possível gerar o link temporário do comprovante.");return;}
@@ -31,6 +32,7 @@ async function uploadPortariaReceipt(r,input,button){
 }
 function portariaControls(cell,r){
  const wrap=document.createElement("div");wrap.className="portaria-actions";
+ const destination=document.createElement("small");destination.className="portaria-destination";destination.textContent="Destinatário: "+(whatsappNumber(r.phone)?"+"+whatsappNumber(r.phone):"Telefone inválido");wrap.append(destination);
  const file=document.createElement("input");file.type="file";file.accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp";
  file.setAttribute("aria-label","Arquivo de comprovante da portaria da inscrição "+r.registration_code);
  const upload=document.createElement("button");upload.type="button";upload.textContent=r.entrance_receipt_path?"SUBSTITUIR COMPROVANTE":"ANEXAR COMPROVANTE";
@@ -39,7 +41,7 @@ function portariaControls(cell,r){
  if(r.entrance_receipt_path){
   const view=document.createElement("button");view.type="button";view.textContent="VISUALIZAR";
   view.onclick=async()=>{const {data,error}=await db.storage.from(proofBucket).createSignedUrl(r.entrance_receipt_path,120);if(error||!data?.signedUrl){setMsg("Não foi possível abrir o comprovante.");return;}window.open(data.signedUrl,"_blank","noopener,noreferrer")};
-  const send=document.createElement("button");send.type="button";send.className="portaria-whatsapp";send.textContent="ENVIAR NO WHATSAPP";send.onclick=()=>sendPortariaWhatsapp(r);
+  const send=document.createElement("button");send.type="button";send.className="portaria-whatsapp";send.textContent="ENVIAR AO WHATSAPP DO INSCRITO";send.onclick=()=>sendPortariaWhatsapp(r);
   wrap.append(view,send);
  }
  cell.append(wrap);
