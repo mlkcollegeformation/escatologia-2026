@@ -2,9 +2,10 @@
 const proofBucket="escatologia-comprovantes";
 const portariaMimes={"application/pdf":"pdf","image/png":"png","image/jpeg":"jpg","image/webp":"webp"};
 function whatsappNumber(value){const digits=clean(value).replace(/\D/g,"");if(digits.length===11||digits.length===10)return "55"+digits;if(digits.startsWith("55")&&digits.length>=12&&digits.length<=13)return digits;return null}
+function organizationWhatsApp(){return whatsappNumber(cfg.portariaReceiptWhatsapp||cfg.whatsapps?.[0]||"5511991766716")}
 async function sendPortariaWhatsapp(r){
  if(!r.entrance_receipt_path){setMsg("Anexe primeiro o comprovante da portaria.");return;}
- const phone=whatsappNumber(cfg.portariaReceiptWhatsapp);
+ const phone=organizationWhatsApp();
  if(!phone){setMsg("O WhatsApp fixo da organização não está configurado corretamente.");return;}
  if(!confirm("Encaminhar o comprovante da inscrição "+r.registration_code+" para o WhatsApp fixo da organização: +"+phone+"?"))return;
  const opened=window.open("about:blank","_blank");
@@ -32,7 +33,7 @@ async function uploadPortariaReceipt(r,input,button){
 }
 function portariaControls(cell,r){
  const wrap=document.createElement("div");wrap.className="portaria-actions";
- const destination=document.createElement("small");destination.className="portaria-destination";destination.textContent="Organização (fixo): "+(whatsappNumber(cfg.portariaReceiptWhatsapp)?"+"+whatsappNumber(cfg.portariaReceiptWhatsapp):"Não configurado");wrap.append(destination);
+ const destination=document.createElement("small");destination.className="portaria-destination";destination.textContent="Organização (fixo): "+(organizationWhatsApp()?"+"+organizationWhatsApp():"Não configurado");wrap.append(destination);
  const file=document.createElement("input");file.type="file";file.accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp";
  file.setAttribute("aria-label","Arquivo de comprovante da portaria da inscrição "+r.registration_code);
  const upload=document.createElement("button");upload.type="button";upload.textContent=r.entrance_receipt_path?"SUBSTITUIR COMPROVANTE":"ANEXAR COMPROVANTE";
