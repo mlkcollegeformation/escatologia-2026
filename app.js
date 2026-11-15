@@ -11,7 +11,7 @@ const openSheet=document.getElementById("open-sheet-registration");
 const backButton=document.getElementById("back-registration");
 const panelTitle=document.getElementById("form-panel-title");
 const sheetResponsibleField=document.getElementById("sheet-responsible-field");
-const sheetResponsibleInput=sheetResponsibleField.querySelector('input[name="sheet_responsible"]');
+const sheetResponsibleInput=sheetResponsibleField.querySelector('select[name="sheet_responsible"]');
 const sheetPaymentInfo=document.getElementById("sheet-payment-info");
 const paymentChoice=document.getElementById("payment-choice");
 const paymentChoices=[...form.querySelectorAll('input[name="payment_method"]')];
