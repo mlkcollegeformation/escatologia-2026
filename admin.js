@@ -6,12 +6,12 @@ async function sendPortariaWhatsapp(r){
  if(!r.entrance_receipt_path){setMsg("Anexe primeiro o comprovante da portaria.");return;}
  const phone=whatsappNumber(r.phone);
  if(!phone){setMsg("O WhatsApp do participante não está em formato válido.");return;}
+ const opened=window.open("about:blank","_blank");
  const {data,error}=await db.storage.from(proofBucket).createSignedUrl(r.entrance_receipt_path,604800);
- if(error||!data?.signedUrl){setMsg("Não foi possível gerar o link temporário do comprovante.");return;}
+ if(error||!data?.signedUrl){if(opened)opened.close();setMsg("Não foi possível gerar o link temporário do comprovante.");return;}
  const message="Olá, "+r.full_name+"! Segue o comprovante do pagamento realizado na portaria do XIV Seminário de Escatologia e Batalha Espiritual 2026. Inscrição nº "+r.registration_code+". Comprovante (link válido por 7 dias): "+data.signedUrl;
  const link="https://wa.me/"+phone+"?text="+encodeURIComponent(message);
- const win=window.open(link,"_blank","noopener,noreferrer");
- if(!win){setMsg("O navegador bloqueou a abertura do WhatsApp. Permita pop-ups para este site.");return;}
+ if(opened){opened.location.replace(link);}else{window.location.href=link;}
  setMsg("WhatsApp aberto para "+r.registration_code+". Confira o destinatário e toque em ENVIAR na conversa.");
 }
 async function uploadPortariaReceipt(r,input,button){
