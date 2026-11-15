@@ -48,3 +48,65 @@
   .event-facts span {font-size:8px}
   .hero-sound {margin-top:24px;width:100%;min-height:44px}
 }
+
+/* Hero mobile V2: área de mídia separada da copy, com proporção original */
+@media screen and (max-width:700px) {
+  body .hero {
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:flex-start;
+    height:auto;
+    min-height:0;
+    padding:0;
+    overflow:hidden;
+    background:#090e1b;
+  }
+  body .hero > video.hero-video {
+    position:relative;
+    display:block;
+    order:0;
+    inset:auto;
+    width:100%;
+    max-width:100%;
+    height:auto;
+    min-height:0;
+    aspect-ratio:auto;
+    object-fit:contain;
+    object-position:center;
+    flex:0 0 auto;
+    margin:0;
+    transform:none;
+    z-index:1;
+    background:#050912;
+  }
+  body .hero > .hero-sound {
+    order:1;
+    position:relative;
+    z-index:3;
+    display:block;
+    width:auto;
+    align-self:flex-start;
+    margin:10px 14px 0;
+    min-height:43px;
+    padding:10px 16px;
+  }
+  body .hero > .hero-inner {
+    order:2;
+    width:min(100% - 28px,1130px);
+    padding:24px 0 46px;
+    margin:auto;
+    position:relative;
+    z-index:2;
+  }
+  body .hero > .hero-video-shade,
+  body .hero > .hero-glow {display:none}
+}
+@media screen and (min-width:701px) {
+  .hero > .hero-sound {
+    position:absolute;
+    z-index:5;
+    bottom:24px;
+    right:max(20px,calc((100vw - 1130px)/2));
+  }
+}
