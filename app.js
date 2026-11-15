@@ -103,9 +103,13 @@ function receiptCanvas(){
  c.font="bold 28px Montserrat, Arial";c.fillText("XIV SEMINÁRIO DE ESCATOLOGIA",80,132);
  c.font="23px Montserrat, Arial";c.fillText("E BATALHA ESPIRITUAL · 2026",80,172);
  c.fillStyle="#f2dfad";c.font="bold 56px Georgia, serif";c.fillText("O PALCO ESTÁ PRONTO",80,280);
- c.strokeStyle="#d5b16b";c.strokeRect(70,335,960,580);
+ // Número individual de inscrição em destaque no comprovante baixado.
+ c.fillStyle="#251d14";c.fillRect(70,324,960,115);
+ c.strokeStyle="#d5b16b";c.lineWidth=3;c.strokeRect(70,324,960,115);
+ c.fillStyle="#e9cc89";c.font="bold 21px Arial";c.fillText("SEU NÚMERO INDIVIDUAL DE INSCRIÇÃO",105,357);
+ c.fillStyle="#ffffff";c.font="bold 44px Arial";c.fillText(e.code,105,411);
+ c.lineWidth=1;c.strokeStyle="#d5b16b";c.strokeRect(70,465,960,450);
  const line=(label,value,y)=>{c.fillStyle="#c1c4cc";c.font="22px Arial";c.fillText(label,105,y);c.fillStyle="#ffffff";c.font="bold 28px Arial";c.fillText(value,105,y+41);};
- line("NÚMERO DE INSCRIÇÃO",e.code,395);
  line("PARTICIPANTE",e.name.slice(0,50),510);
  line("DATA DO EVENTO","4, 5 E 6 DE DEZEMBRO DE 2026",625);
  line("INVESTIMENTO","R$ 100,00",740);
@@ -136,7 +140,7 @@ function receiptCanvas(){
  c.font="bold 22px Arial";c.fillStyle="#f5f1e9";
  c.fillText("COMPROVANTE DE CADASTRO - PAGAMENTO PENDENTE",80,1865);
  c.font="18px Arial";c.fillStyle="#b1b4be";
- c.fillText("Apresente o número da inscrição na recepção.",80,1906);
+ c.fillText("Número de inscrição: "+e.code,80,1906);
  c.fillText("A confirmação financeira é realizada pela administração.",80,1941);
  return canvas;
 }
