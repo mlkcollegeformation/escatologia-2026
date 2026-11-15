@@ -4,30 +4,70 @@ const form=document.getElementById("registration-form"),msg=document.getElementB
 const ready=Boolean(C.supabaseUrl&&C.supabaseAnonKey&&window.supabase);
 const db=ready?window.supabase.createClient(C.supabaseUrl,C.supabaseAnonKey):null;
 let enrollment=null;
+let registrationMode="online";
+const openingActions=document.getElementById("registration-open-actions");
+const openOnline=document.getElementById("open-online-registration");
+const openSheet=document.getElementById("open-sheet-registration");
+const backButton=document.getElementById("back-registration");
+const panelTitle=document.getElementById("form-panel-title");
+const sheetResponsibleField=document.getElementById("sheet-responsible-field");
+const sheetResponsibleInput=sheetResponsibleField.querySelector('input[name="sheet_responsible"]');
+const sheetPaymentInfo=document.getElementById("sheet-payment-info");
+const paymentChoice=document.getElementById("payment-choice");
 const paymentChoices=[...form.querySelectorAll('input[name="payment_method"]')];
 const receiptField=document.getElementById("pix-upload-field");
 const receiptInput=form.querySelector('input[name="receipt"]');
-const pixDetails=document.querySelector(".payment-details");
-function selectedMethod(){return form.querySelector('input[name="payment_method"]:checked')?.value||"pix";}
+const pixDetails=document.getElementById("registration-pix-details");
+function selectedMethod(){return registrationMode==="sheet"?"pix":form.querySelector('input[name="payment_method"]:checked')?.value||"pix";}
 function updatePaymentOption(){
  const pix=selectedMethod()==="pix";
  receiptField.hidden=!pix;
  receiptInput.required=pix;
  receiptInput.disabled=!pix;
- if(!pix) receiptInput.value="";
- if(pixDetails)pixDetails.hidden=!pix;
+ if(!pix)receiptInput.value="";
+ if(pixDetails)pixDetails.hidden=(!pix||form.classList.contains("hidden"));
  paymentChoices.forEach(radio=>{const label=radio.closest(".payment-option");if(label)label.classList.toggle("selected",radio.checked);});
- submit.textContent=pix?"ENVIAR COMPROVANTE E FINALIZAR ↗":"CONFIRMAR INSCRIÇÃO — PAGAR NA ENTRADA ↗";
+ submit.textContent=registrationMode==="sheet"?"ENVIAR COMPROVANTE E CONFIRMAR FICHA ↗":pix?"ENVIAR COMPROVANTE E FINALIZAR ↗":"CONFIRMAR INSCRIÇÃO — PAGAR NA ENTRADA ↗";
 }
-paymentChoices.forEach(c=>c.addEventListener("change",updatePaymentOption));updatePaymentOption();
+function openRegistration(mode){
+ registrationMode=mode;
+ openingActions.classList.add("hidden");
+ form.classList.remove("hidden");
+ openOnline.setAttribute("aria-expanded",String(mode==="online"));
+ openSheet.setAttribute("aria-expanded",String(mode==="sheet"));
+ panelTitle.textContent=mode==="sheet"?"CONFIRMAR INSCRIÇÃO POR FICHA":"REALIZAR INSCRIÇÃO";
+ const isSheet=mode==="sheet";
+ sheetResponsibleField.hidden=!isSheet;
+ sheetResponsibleInput.disabled=!isSheet;
+ sheetResponsibleInput.required=isSheet;
+ sheetPaymentInfo.hidden=!isSheet;
+ paymentChoice.hidden=isSheet;
+ if(isSheet){form.querySelector('input[name="payment_method"][value="pix"]').checked=true;}
+ updatePaymentOption();
+ form.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function closeRegistration(){
+ form.classList.add("hidden");
+ openingActions.classList.remove("hidden");
+ if(pixDetails)pixDetails.hidden=true;
+ openOnline.setAttribute("aria-expanded","false");openSheet.setAttribute("aria-expanded","false");
+ panelTitle.textContent="ESCOLHA SUA INSCRIÇÃO";
+ msg.textContent="";
+}
+openOnline.addEventListener("click",()=>openRegistration("online"));
+openSheet.addEventListener("click",()=>openRegistration("sheet"));
+backButton.addEventListener("click",closeRegistration);
+paymentChoices.forEach(c=>c.addEventListener("change",updatePaymentOption));
+updatePaymentOption();
 function showMessage(value){msg.textContent=value;msg.classList.add("error");}
 form.addEventListener("submit",async event=>{
  event.preventDefault();msg.textContent="";msg.classList.remove("error");
  if(!ready){showMessage("As inscrições não estão disponíveis neste momento.");return;}
  const fields=new FormData(form);
  const name=String(fields.get("full_name")||"").trim(),phone=String(fields.get("phone")||"").replace(/\D/g,""),email=String(fields.get("email")||"").trim().toLowerCase();
- const method=selectedMethod();const receipt=fields.get("receipt");
+ const method=selectedMethod();const receipt=fields.get("receipt");const responsible=registrationMode==="sheet"?String(fields.get("sheet_responsible")||"").trim():null;
  if(name.length<3||phone.length<10||!/^\S+@\S+\.\S+$/.test(email)||!fields.get("consent")){showMessage("Confira seus dados e aceite a declaração de privacidade.");return;}
+ if(registrationMode==="sheet"&&(!responsible||responsible.length<3)){showMessage("Informe o nome do pastor ou responsável pela ficha de inscrição.");return;}
  const kinds={"application/pdf":"pdf","image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
  if(method==="pix"&&(!(receipt instanceof File)||!kinds[receipt.type]||receipt.size<1||receipt.size>5*1024*1024)){
   showMessage("Para pagamento PIX, anexe um comprovante JPG, PNG, WEBP ou PDF de até 5 MB.");return;
@@ -42,14 +82,14 @@ form.addEventListener("submit",async event=>{
   }
   submit.textContent="FINALIZANDO INSCRIÇÃO…";
   const code="ESC-"+Date.now().toString(36).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase();
-  const {error}=await db.from("event_registrations").insert({registration_code:code,event_slug:C.eventSlug,full_name:name,phone,email,consent:true,receipt_path:path,payment_method:method});
+  const {error}=await db.from("event_registrations").insert({registration_code:code,event_slug:C.eventSlug,full_name:name,phone,email,consent:true,receipt_path:path,payment_method:method,registration_source:registrationMode,sheet_responsible:responsible});
   if(error){showMessage(error.code==="23505"?"E-mail ou telefone já cadastrado. Contate a organização.":"Não foi possível finalizar o cadastro. Contate a organização informando seus dados.");return;}
-  enrollment={name,phone,email,code,method,createdAt:new Date()};
-  form.classList.add("hidden");
-  document.querySelector("#registration-success h3").textContent="Inscrição cadastrada!";
+  enrollment={name,phone,email,code,method,registrationMode,responsible,createdAt:new Date()};
+  form.classList.add("hidden");openingActions.classList.add("hidden");if(pixDetails)pixDetails.hidden=true;
+  document.querySelector("#registration-success h3").textContent=registrationMode==="sheet"?"Inscrição por ficha registrada!":"Inscrição cadastrada!";
   document.querySelector("#registration-success > p").textContent=method==="entrance"?"Seu cadastro foi concluído. O pagamento de R$ 100,00 será feito na entrada do evento.":"Comprovante recebido. Sua inscrição aguarda a conferência manual do PIX.";
   document.getElementById("registration-reference").textContent="Número da inscrição: "+code;
-  document.getElementById("receipt-success-detail").textContent=method==="entrance"?"Modalidade: pagamento na entrada. Situação: pagamento pendente.":"Modalidade: PIX antecipado. Situação: pagamento em análise.";
+  document.getElementById("receipt-success-detail").textContent=registrationMode==="sheet"?"Ficha entregue por: "+responsible+". Pagamento PIX em análise.":method==="entrance"?"Modalidade: pagamento na entrada. Situação: pagamento pendente.":"Modalidade: PIX antecipado. Situação: pagamento em análise.";
   document.getElementById("registration-success").classList.remove("hidden");
  }catch(err){showMessage("Erro de conexão. Verifique sua internet e tente novamente.");}
  finally{submit.disabled=false;updatePaymentOption();}
@@ -70,6 +110,7 @@ function receiptCanvas(){
  line("DATA DO EVENTO","4, 5 E 6 DE DEZEMBRO DE 2026",625);
  line("INVESTIMENTO","R$ 100,00",740);
  line("FORMA DE PAGAMENTO",e.method==="entrance"?"PAGAMENTO NA ENTRADA":"PIX - EM ANÁLISE",850);
+ if(e.registrationMode==="sheet"){c.fillStyle="#f2dfad";c.font="bold 18px Arial";c.fillText("INSCRIÇÃO POR FICHA · RESPONSÁVEL: "+e.responsible.slice(0,45),80,952);}
  c.fillStyle="#d5b16b";c.font="bold 28px Arial";c.fillText("INFORMAÇÕES DO SEMINÁRIO",80,990);
  c.font="21px Arial";c.fillStyle="#f5f1e9";
  c.fillText("Palestrante: Dr. Th. Gilson Henriques",80,1035);
