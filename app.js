@@ -52,7 +52,7 @@ form.addEventListener("submit",async event=>{
 });
 function receiptCanvas(){
  if(!enrollment)return null;
- const canvas=document.createElement("canvas");canvas.width=1100;canvas.height=1450;
+ const canvas=document.createElement("canvas");canvas.width=1100;canvas.height=2050;
  const c=canvas.getContext("2d"),e=enrollment;
  c.fillStyle="#090e1b";c.fillRect(0,0,1100,1450);
  c.fillStyle="#d5b16b";c.fillRect(70,65,960,5);
@@ -66,14 +66,33 @@ function receiptCanvas(){
  line("DATA DO EVENTO","4, 5 E 6 DE DEZEMBRO DE 2026",625);
  line("INVESTIMENTO","R$ 100,00",740);
  line("FORMA DE PAGAMENTO",e.method==="entrance"?"PAGAMENTO NA ENTRADA":"PIX - EM ANÁLISE",850);
- c.fillStyle="#d5b16b";c.font="bold 28px Arial";c.fillText("PROGRAMAÇÃO DO EVENTO",80,1000);
- const lines=["SEXTA 04/12 — Check-in 19h · 1ª palestra 20h15","SÁBADO 05/12 — Programação a partir das 15h40","DOMINGO 06/12 — Café 7h30 · Programação 8h30"];
- c.font="22px Arial";c.fillStyle="#f5f1e9";lines.forEach((x,i)=>c.fillText(x,80,1055+i*48));
- c.fillStyle="#d5b16b";c.fillRect(80,1240,940,2);
- c.font="21px Arial";c.fillStyle="#ece6df";
- c.fillText("COMPROVANTE DE INSCRIÇÃO · PAGAMENTO PENDENTE",80,1290);
+ c.fillStyle="#d5b16b";c.font="bold 28px Arial";c.fillText("INFORMAÇÕES DO SEMINÁRIO",80,990);
+ c.font="21px Arial";c.fillStyle="#f5f1e9";
+ c.fillText("Palestrante: Dr. Th. Gilson Henriques",80,1035);
+ c.fillText("Local: Av. Alberto Byington, 2354",80,1075);
+ c.fillText("Vila Maria Alta - São Paulo/SP",80,1111);
+ c.fillStyle="#d5b16b";c.font="bold 28px Arial";c.fillText("PROGRAMAÇÃO",80,1188);
+ const lines=[
+ "SEXTA, 04/12",
+ "19h — Check-in e retirada de crachás",
+ "19h30 — Intercessão e louvor",
+ "20h15 — Olhe ao Seu Redor",
+ "SÁBADO, 05/12",
+ "15h40 — Louvor | 16h — Como Num Funil",
+ "17h30 — As Dores de Parto e Caos Global",
+ "18h15 — Intervalo | 18h50 — Apresentação de dança",
+ "DOMINGO, 06/12",
+ "07h30 — Café da manhã | 08h30 — Oração e louvor",
+ "09h — Teatro Kalil | 09h20 — Economia da Besta",
+ "10h30 — Aguardando a Bendita Esperança"
+ ];
+ lines.forEach((text,i)=>{c.fillStyle=i===0||i===4||i===8?"#d5b16b":"#f5f1e9";c.font=(i===0||i===4||i===8?"bold ":"")+"20px Arial";c.fillText(text,80,1240+i*44);});
+ c.fillStyle="#d5b16b";c.fillRect(80,1815,940,2);
+ c.font="bold 22px Arial";c.fillStyle="#f5f1e9";
+ c.fillText("COMPROVANTE DE CADASTRO - PAGAMENTO PENDENTE",80,1865);
  c.font="18px Arial";c.fillStyle="#b1b4be";
- c.fillText("O pagamento será validado pela administração do evento.",80,1334);
+ c.fillText("Apresente o número da inscrição na recepção.",80,1906);
+ c.fillText("A confirmação financeira é realizada pela administração.",80,1941);
  return canvas;
 }
 function savePng(){
