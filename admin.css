@@ -5,3 +5,5 @@
 .portaria-actions input[type=file]::file-selector-button{background:#202d41;border:1px solid #74644a;color:#e6cc97;border-radius:3px;margin:0 6px 6px 0;padding:7px;cursor:pointer}
 .portaria-actions button{width:100%;font-size:10px;white-space:normal}
 .portaria-actions .portaria-whatsapp{background:#227b5a;color:#fff}
+
+.portaria-destination{display:block;font-size:11px;color:#f0d5a2;overflow-wrap:anywhere;padding:4px 0}
