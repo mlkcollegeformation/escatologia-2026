@@ -11,8 +11,12 @@ const pixDetails=document.querySelector(".payment-details");
 function selectedMethod(){return form.querySelector('input[name="payment_method"]:checked')?.value||"pix";}
 function updatePaymentOption(){
  const pix=selectedMethod()==="pix";
- receiptField.hidden=!pix;receiptInput.required=pix;
+ receiptField.hidden=!pix;
+ receiptInput.required=pix;
+ receiptInput.disabled=!pix;
+ if(!pix) receiptInput.value="";
  if(pixDetails)pixDetails.hidden=!pix;
+ paymentChoices.forEach(radio=>{const label=radio.closest(".payment-option");if(label)label.classList.toggle("selected",radio.checked);});
  submit.textContent=pix?"ENVIAR COMPROVANTE E FINALIZAR ↗":"CONFIRMAR INSCRIÇÃO — PAGAR NA ENTRADA ↗";
 }
 paymentChoices.forEach(c=>c.addEventListener("change",updatePaymentOption));updatePaymentOption();
@@ -54,7 +58,7 @@ function receiptCanvas(){
  if(!enrollment)return null;
  const canvas=document.createElement("canvas");canvas.width=1100;canvas.height=2050;
  const c=canvas.getContext("2d"),e=enrollment;
- c.fillStyle="#090e1b";c.fillRect(0,0,1100,1450);
+ c.fillStyle="#090e1b";c.fillRect(0,0,1100,2050);
  c.fillStyle="#d5b16b";c.fillRect(70,65,960,5);
  c.font="bold 28px Montserrat, Arial";c.fillText("XIV SEMINÁRIO DE ESCATOLOGIA",80,132);
  c.font="23px Montserrat, Arial";c.fillText("E BATALHA ESPIRITUAL · 2026",80,172);
