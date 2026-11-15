@@ -4,16 +4,16 @@ const portariaMimes={"application/pdf":"pdf","image/png":"png","image/jpeg":"jpg
 function whatsappNumber(value){const digits=clean(value).replace(/\D/g,"");if(digits.length===11||digits.length===10)return "55"+digits;if(digits.startsWith("55")&&digits.length>=12&&digits.length<=13)return digits;return null}
 async function sendPortariaWhatsapp(r){
  if(!r.entrance_receipt_path){setMsg("Anexe primeiro o comprovante da portaria.");return;}
- const phone=whatsappNumber(r.phone);
- if(!phone){setMsg("O WhatsApp do participante não está em formato válido.");return;}
- if(!confirm("Enviar o comprovante da inscrição "+r.registration_code+" para o WhatsApp cadastrado pelo participante: +"+phone+"?"))return;
+ const phone=whatsappNumber(cfg.portariaReceiptWhatsapp);
+ if(!phone){setMsg("O WhatsApp fixo da organização não está configurado corretamente.");return;}
+ if(!confirm("Encaminhar o comprovante da inscrição "+r.registration_code+" para o WhatsApp fixo da organização: +"+phone+"?"))return;
  const opened=window.open("about:blank","_blank");
  const {data,error}=await db.storage.from(proofBucket).createSignedUrl(r.entrance_receipt_path,604800);
  if(error||!data?.signedUrl){if(opened)opened.close();setMsg("Não foi possível gerar o link temporário do comprovante.");return;}
- const message="Olá, "+r.full_name+"! Segue o comprovante do pagamento realizado na portaria do XIV Seminário de Escatologia e Batalha Espiritual 2026. Inscrição nº "+r.registration_code+". Comprovante (link válido por 7 dias): "+data.signedUrl;
+ const message="COMPROVANTE DE PAGAMENTO NA PORTARIA — XIV Seminário de Escatologia e Batalha Espiritual 2026\nInscrição nº: "+r.registration_code+"\nParticipante: "+r.full_name+"\nWhatsApp do inscrito: "+r.phone+"\nComprovante (link válido por 7 dias): "+data.signedUrl;
  const link="https://wa.me/"+phone+"?text="+encodeURIComponent(message);
  if(opened){opened.location.replace(link);}else{window.location.href=link;}
- setMsg("WhatsApp aberto para "+r.registration_code+". Confira o destinatário e toque em ENVIAR na conversa.");
+ setMsg("WhatsApp da organização aberto para a inscrição "+r.registration_code+". Confira o destinatário e toque em ENVIAR na conversa.");
 }
 async function uploadPortariaReceipt(r,input,button){
  const file=input.files?.[0],extension=file&&portariaMimes[file.type];
@@ -32,7 +32,7 @@ async function uploadPortariaReceipt(r,input,button){
 }
 function portariaControls(cell,r){
  const wrap=document.createElement("div");wrap.className="portaria-actions";
- const destination=document.createElement("small");destination.className="portaria-destination";destination.textContent="Destinatário: "+(whatsappNumber(r.phone)?"+"+whatsappNumber(r.phone):"Telefone inválido");wrap.append(destination);
+ const destination=document.createElement("small");destination.className="portaria-destination";destination.textContent="Organização (fixo): "+(whatsappNumber(cfg.portariaReceiptWhatsapp)?"+"+whatsappNumber(cfg.portariaReceiptWhatsapp):"Não configurado");wrap.append(destination);
  const file=document.createElement("input");file.type="file";file.accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp";
  file.setAttribute("aria-label","Arquivo de comprovante da portaria da inscrição "+r.registration_code);
  const upload=document.createElement("button");upload.type="button";upload.textContent=r.entrance_receipt_path?"SUBSTITUIR COMPROVANTE":"ANEXAR COMPROVANTE";
@@ -41,7 +41,7 @@ function portariaControls(cell,r){
  if(r.entrance_receipt_path){
   const view=document.createElement("button");view.type="button";view.textContent="VISUALIZAR";
   view.onclick=async()=>{const {data,error}=await db.storage.from(proofBucket).createSignedUrl(r.entrance_receipt_path,120);if(error||!data?.signedUrl){setMsg("Não foi possível abrir o comprovante.");return;}window.open(data.signedUrl,"_blank","noopener,noreferrer")};
-  const send=document.createElement("button");send.type="button";send.className="portaria-whatsapp";send.textContent="ENVIAR AO WHATSAPP DO INSCRITO";send.onclick=()=>sendPortariaWhatsapp(r);
+  const send=document.createElement("button");send.type="button";send.className="portaria-whatsapp";send.textContent="ENVIAR AO WHATSAPP DA ORGANIZAÇÃO";send.onclick=()=>sendPortariaWhatsapp(r);
   wrap.append(view,send);
  }
  cell.append(wrap);
