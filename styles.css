@@ -110,3 +110,6 @@
     right:max(20px,calc((100vw - 1130px)/2));
   }
 }
+
+/* Payment method & registration downloads */
+.payment-choice{border:1px solid var(--line);padding:16px;margin:0 0 18px;border-radius:5px}.payment-choice legend{color:var(--gold2);font-size:12px;font-weight:700;padding:0 8px}.payment-option{display:flex;align-items:center;gap:11px;margin:10px 0;font-size:12px;cursor:pointer}.payment-option input{accent-color:var(--gold);width:18px;height:18px;flex:none}.download-actions{display:grid;gap:10px;margin:19px 0}.download-actions .btn{width:100%}#pix-upload-field[hidden],.payment-details[hidden]{display:none!important}input[type=file]{font-size:12px;max-width:100%}
