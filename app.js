@@ -81,9 +81,15 @@ form.addEventListener("submit",async event=>{
    if(uploadError){showMessage("Não foi possível enviar o comprovante. Tente novamente.");return;}
   }
   submit.textContent="FINALIZANDO INSCRIÇÃO…";
-  const code="ESC-"+Date.now().toString(36).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase();
-  const {error}=await db.from("event_registrations").insert({registration_code:code,event_slug:C.eventSlug,full_name:name,phone,email,consent:true,receipt_path:path,payment_method:method,registration_source:registrationMode,sheet_responsible:responsible});
+  const registrationId=crypto.randomUUID();
+  // A sequência 001, 002, 003... é atribuída pelo banco de dados.
+  const {error}=await db.from("event_registrations").insert({id:registrationId,registration_code:"PENDENTE",event_slug:C.eventSlug,full_name:name,phone,email,consent:true,receipt_path:path,payment_method:method,registration_source:registrationMode,sheet_responsible:responsible});
   if(error){showMessage(error.code==="23505"?"E-mail ou telefone já cadastrado. Contate a organização.":"Não foi possível finalizar o cadastro. Contate a organização informando seus dados.");return;}
+  const {data:issuedCode,error:codeError}=await db.rpc("event_registration_code_by_id",{p_id:registrationId});
+  if(codeError||!issuedCode){
+   showMessage("Seu cadastro foi registrado, mas não foi possível recuperar o número de inscrição. Entre em contato com a organização antes de reenviar.");return;
+  }
+  const code=String(issuedCode);
   enrollment={name,phone,email,code,method,registrationMode,responsible,createdAt:new Date()};
   form.classList.add("hidden");openingActions.classList.add("hidden");if(pixDetails)pixDetails.hidden=true;
   document.querySelector("#registration-success h3").textContent=registrationMode==="sheet"?"Inscrição por ficha registrada!":"Inscrição cadastrada!";
