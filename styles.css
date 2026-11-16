@@ -147,3 +147,6 @@
 
 /* Inscrição de casal, promocional até 20/11/2026 */
 .couple-promo-price{margin:15px 0;padding:18px;background:rgba(213,177,107,.08);border:1px solid #d5b16b;border-radius:9px}.couple-promo-price strong{display:block;font-size:31px;color:#f3d8a3}.couple-promo-price small{display:block;color:#d0d4dd}.couple-note{color:#e8c98b;font-weight:700;font-size:12px;line-height:1.5;padding:12px;background:#242032;border-radius:7px}#couple-extra-fields:not([hidden]){display:grid;gap:13px;margin:14px 0}#open-couple-registration:not([hidden]){border-color:#d5b16b;color:#f8dea7;background:rgba(213,177,107,.12)}
+
+/* Respeitar a expiração automática da promoção em todos os dispositivos */
+#open-couple-registration[hidden],#couple-extra-fields[hidden],#couple-promo-price[hidden]{display:none!important}
