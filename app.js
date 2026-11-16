@@ -11,7 +11,7 @@ const openSheet=document.getElementById("open-sheet-registration");
 const openCouple=document.getElementById("open-couple-registration");
 const coupleExtra=document.getElementById("couple-extra-fields");
 const coupleInputs=[...coupleExtra.querySelectorAll("input")];
-const dateParts=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+const dateParts=()=>{const parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const obj=Object.fromEntries(parts.map(p=>[p.type,p.value]));return obj.year+"-"+obj.month+"-"+obj.day;};
 function coupleAvailable(){return dateParts()<="2026-11-20"}
 openCouple.hidden=!coupleAvailable();
 const backButton=document.getElementById("back-registration");
