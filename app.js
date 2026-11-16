@@ -8,6 +8,12 @@ let registrationMode="online";
 const openingActions=document.getElementById("registration-open-actions");
 const openOnline=document.getElementById("open-online-registration");
 const openSheet=document.getElementById("open-sheet-registration");
+const openCouple=document.getElementById("open-couple-registration");
+const coupleExtra=document.getElementById("couple-extra-fields");
+const coupleInputs=[...coupleExtra.querySelectorAll("input")];
+const dateParts=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+function coupleAvailable(){return dateParts()<="2026-11-20"}
+openCouple.hidden=!coupleAvailable();
 const backButton=document.getElementById("back-registration");
 const panelTitle=document.getElementById("form-panel-title");
 const sheetResponsibleField=document.getElementById("sheet-responsible-field");
@@ -27,15 +33,20 @@ function updatePaymentOption(){
  if(!pix)receiptInput.value="";
  if(pixDetails)pixDetails.hidden=(!pix||form.classList.contains("hidden"));
  paymentChoices.forEach(radio=>{const label=radio.closest(".payment-option");if(label)label.classList.toggle("selected",radio.checked);});
- submit.textContent=registrationMode==="sheet"?"ENVIAR COMPROVANTE E CONFIRMAR FICHA ↗":pix?"ENVIAR COMPROVANTE E FINALIZAR ↗":"CONFIRMAR INSCRIÇÃO — PAGAR NA ENTRADA ↗";
+ document.getElementById("entrance-payment-value").textContent=registrationMode==="couple"?"R$ 160,00 por casal no dia do evento · sem comprovante agora":"R$ 100,00 no dia do evento · sem comprovante agora";
+ submit.textContent=registrationMode==="couple"?(pix?"ENVIAR COMPROVANTE DO CASAL ↗":"CONFIRMAR INSCRIÇÃO DO CASAL ↗"):registrationMode==="sheet"?"ENVIAR COMPROVANTE E CONFIRMAR FICHA ↗":pix?"ENVIAR COMPROVANTE E FINALIZAR ↗":"CONFIRMAR INSCRIÇÃO — PAGAR NA ENTRADA ↗";
 }
 function openRegistration(mode){
+ if(mode==="couple"&&!coupleAvailable()){alert("A promoção de casal foi encerrada em 20/11/2026.");openCouple.hidden=true;return;}
  registrationMode=mode;
+ const isCouple=mode==="couple";coupleExtra.hidden=!isCouple;coupleInputs.forEach(el=>{el.required=isCouple;el.disabled=!isCouple;});
+ document.getElementById("couple-promo-price").hidden=!isCouple;
  openingActions.classList.add("hidden");
  form.classList.remove("hidden");
  openOnline.setAttribute("aria-expanded",String(mode==="online"));
  openSheet.setAttribute("aria-expanded",String(mode==="sheet"));
- panelTitle.textContent=mode==="sheet"?"CONFIRMAR INSCRIÇÃO POR FICHA":"REALIZAR INSCRIÇÃO";
+ openCouple.setAttribute("aria-expanded",String(isCouple));
+ panelTitle.textContent=mode==="sheet"?"CONFIRMAR INSCRIÇÃO POR FICHA":isCouple?"INSCRIÇÃO PROMOCIONAL CASAL — R$ 160":"REALIZAR INSCRIÇÃO";
  const isSheet=mode==="sheet";
  sheetResponsibleField.hidden=!isSheet;
  sheetResponsibleInput.disabled=!isSheet;
@@ -48,14 +59,16 @@ function openRegistration(mode){
 }
 function closeRegistration(){
  form.classList.add("hidden");
+ coupleExtra.hidden=true;document.getElementById("couple-promo-price").hidden=true;
  openingActions.classList.remove("hidden");
  if(pixDetails)pixDetails.hidden=true;
- openOnline.setAttribute("aria-expanded","false");openSheet.setAttribute("aria-expanded","false");
+ openOnline.setAttribute("aria-expanded","false");openSheet.setAttribute("aria-expanded","false");openCouple.setAttribute("aria-expanded","false");
  panelTitle.textContent="ESCOLHA SUA INSCRIÇÃO";
  msg.textContent="";
 }
 openOnline.addEventListener("click",()=>openRegistration("online"));
 openSheet.addEventListener("click",()=>openRegistration("sheet"));
+openCouple.addEventListener("click",()=>openRegistration("couple"));
 backButton.addEventListener("click",closeRegistration);
 paymentChoices.forEach(c=>c.addEventListener("change",updatePaymentOption));
 updatePaymentOption();
@@ -65,6 +78,9 @@ form.addEventListener("submit",async event=>{
  if(!ready){showMessage("As inscrições não estão disponíveis neste momento.");return;}
  const fields=new FormData(form);
  const name=String(fields.get("full_name")||"").trim(),phone=String(fields.get("phone")||"").replace(/\D/g,""),email=String(fields.get("email")||"").trim().toLowerCase();
+ const isCouple=registrationMode==="couple";
+ const spouseName=String(fields.get("spouse_name")||"").trim(),spousePhone=String(fields.get("spouse_phone")||"").replace(/\D/g,""),spouseEmail=String(fields.get("spouse_email")||"").trim().toLowerCase();
+ if(isCouple&&(!coupleAvailable()||spouseName.length<3||spousePhone.length<10||!/^\S+@\S+\.\S+$/.test(spouseEmail)||spousePhone===phone||spouseEmail===email)){showMessage("Promoção encerrada ou dados do casal inválidos. Informe contatos diferentes para cada cônjuge.");return;}
  const method=selectedMethod();const receipt=fields.get("receipt");const responsible=registrationMode==="sheet"?String(fields.get("sheet_responsible")||"").trim():null;
  if(name.length<3||phone.length<10||!/^\S+@\S+\.\S+$/.test(email)||!fields.get("consent")){showMessage("Confira seus dados e aceite a declaração de privacidade.");return;}
  if(registrationMode==="sheet"&&(!responsible||responsible.length<3)){showMessage("Informe o nome do pastor ou responsável pela ficha de inscrição.");return;}
@@ -81,6 +97,17 @@ form.addEventListener("submit",async event=>{
    if(uploadError){showMessage("Não foi possível enviar o comprovante. Tente novamente.");return;}
   }
   submit.textContent="FINALIZANDO INSCRIÇÃO…";
+  if(isCouple){
+   const {data:codes,error:coupleError}=await db.rpc("event_register_couple",{p_name_1:name,p_phone_1:phone,p_email_1:email,p_name_2:spouseName,p_phone_2:spousePhone,p_email_2:spouseEmail,p_payment_method:method,p_receipt_path:path,p_consent:true});
+   if(coupleError||!codes?.first_code||!codes?.second_code){showMessage(coupleError?.message?.includes("Promocao")?"A promoção de casal terminou em 20/11/2026.":coupleError?.code==="23505"?"Um dos contatos já está cadastrado. Contate a organização.":"Não foi possível registrar o casal. Verifique os dados e tente novamente.");return;}
+   enrollment={name,phone,email,code:String(codes.first_code),secondCode:String(codes.second_code),spouseName,method,registrationMode,responsible:null,amount:160,createdAt:new Date()};
+   form.classList.add("hidden");openingActions.classList.add("hidden");if(pixDetails)pixDetails.hidden=true;
+   document.querySelector("#registration-success h3").textContent="Inscrição do casal registrada!";
+   document.querySelector("#registration-success > p").textContent=method==="entrance"?"Pagamento de R$ 160,00 por casal na entrada do evento.":"Comprovante de R$ 160,00 recebido para análise da organização.";
+   document.getElementById("registration-reference").textContent=name+": inscrição "+codes.first_code+" · "+spouseName+": inscrição "+codes.second_code;
+   document.getElementById("receipt-success-detail").textContent="Dois participantes, um pagamento de R$ 160,00. Baixe o comprovante do casal para apresentar na portaria.";
+   document.getElementById("registration-success").classList.remove("hidden");return;
+  }
   const registrationId=crypto.randomUUID();
   // A sequência 001, 002, 003... é atribuída pelo banco de dados.
   const {error}=await db.from("event_registrations").insert({id:registrationId,registration_code:"PENDENTE",event_slug:C.eventSlug,full_name:name,phone,email,consent:true,receipt_path:path,payment_method:method,registration_source:registrationMode,sheet_responsible:responsible});
@@ -113,12 +140,13 @@ function receiptCanvas(){
  c.fillStyle="#251d14";c.fillRect(70,324,960,115);
  c.strokeStyle="#d5b16b";c.lineWidth=3;c.strokeRect(70,324,960,115);
  c.fillStyle="#e9cc89";c.font="bold 21px Arial";c.fillText("SEU NÚMERO INDIVIDUAL DE INSCRIÇÃO",105,357);
- c.fillStyle="#ffffff";c.font="bold 44px Arial";c.fillText(e.code,105,411);
+ c.fillStyle="#ffffff";c.font="bold 44px Arial";c.fillText(e.secondCode?e.code+"  /  "+e.secondCode:e.code,105,411);
  c.lineWidth=1;c.strokeStyle="#d5b16b";c.strokeRect(70,465,960,450);
  const line=(label,value,y)=>{c.fillStyle="#c1c4cc";c.font="22px Arial";c.fillText(label,105,y);c.fillStyle="#ffffff";c.font="bold 28px Arial";c.fillText(value,105,y+41);};
- line("PARTICIPANTE",e.name.slice(0,50),510);
+ line(e.secondCode?"PARTICIPANTES DO CASAL":"PARTICIPANTE",e.name.slice(0,50),510);
+ if(e.secondCode){c.fillStyle="#e9cc89";c.font="bold 24px Arial";c.fillText("Cônjuge: "+e.spouseName.slice(0,48)+" · Nº "+e.secondCode,105,605);}
  line("DATA DO EVENTO","4, 5 E 6 DE DEZEMBRO DE 2026",625);
- line("INVESTIMENTO","R$ 100,00",740);
+ line("INVESTIMENTO",e.secondCode?"R$ 160,00 POR CASAL":"R$ 100,00",740);
  line("FORMA DE PAGAMENTO",e.method==="entrance"?"PAGAMENTO NA ENTRADA":"PIX - EM ANÁLISE",850);
  if(e.registrationMode==="sheet"){c.fillStyle="#f2dfad";c.font="bold 18px Arial";c.fillText("INSCRIÇÃO POR FICHA · RESPONSÁVEL: "+e.responsible.slice(0,45),80,952);}
  c.fillStyle="#d5b16b";c.font="bold 28px Arial";c.fillText("INFORMAÇÕES DO SEMINÁRIO",80,990);
@@ -146,7 +174,7 @@ function receiptCanvas(){
  c.font="bold 22px Arial";c.fillStyle="#f5f1e9";
  c.fillText("COMPROVANTE DE CADASTRO - PAGAMENTO PENDENTE",80,1865);
  c.font="18px Arial";c.fillStyle="#b1b4be";
- c.fillText("Número de inscrição: "+e.code,80,1906);
+ c.fillText(e.secondCode?"Números de inscrição: "+e.code+" e "+e.secondCode:"Número de inscrição: "+e.code,80,1906);
  c.fillText("A confirmação financeira é realizada pela administração.",80,1941);
  return canvas;
 }
