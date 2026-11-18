@@ -99,7 +99,13 @@ form.addEventListener("submit",async event=>{
   submit.textContent="FINALIZANDO INSCRIÇÃO…";
   if(isCouple){
    const {data:codes,error:coupleError}=await db.rpc("event_register_couple",{p_name_1:name,p_phone_1:phone,p_email_1:email,p_name_2:spouseName,p_phone_2:spousePhone,p_email_2:spouseEmail,p_payment_method:method,p_receipt_path:path,p_consent:true});
-   if(coupleError||!codes?.first_code||!codes?.second_code){showMessage(coupleError?.message?.includes("Promocao")?"A promoção de casal terminou em 20/11/2026.":coupleError?.code==="23505"?"Um dos contatos já está cadastrado. Contate a organização.":"Não foi possível registrar o casal. Verifique os dados e tente novamente.");return;}
+   if(coupleError||!codes?.first_code||!codes?.second_code){
+    const errText=String(coupleError?.message||"");
+    const errDetail=String(coupleError?.details||"");
+    const duplicateContact=coupleError?.code==="23505"&&/registration_event_(phone|email)_unique/i.test(errText+" "+errDetail);
+    const duplicateReceipt=/receipt_path|Comprovante PIX ja vinculado/i.test(errText+" "+errDetail);
+    showMessage(errText.includes("Promocao")?"A promoção de casal terminou em 20/11/2026.":duplicateContact?"Um dos telefones ou e-mails já está cadastrado. Confira os contatos ou fale com a organização.":duplicateReceipt?"Este comprovante PIX já está vinculado a outra inscrição. Confira o arquivo e tente novamente.":"Não foi possível registrar o casal. Verifique os dados e tente novamente.");return;
+   }
    enrollment={name,phone,email,code:String(codes.first_code),secondCode:String(codes.second_code),spouseName,method,registrationMode,responsible:null,amount:160,createdAt:new Date()};
    form.classList.add("hidden");openingActions.classList.add("hidden");if(pixDetails)pixDetails.hidden=true;
    document.querySelector("#registration-success h3").textContent="Inscrição do casal registrada!";
@@ -111,7 +117,7 @@ form.addEventListener("submit",async event=>{
   const registrationId=crypto.randomUUID();
   // A sequência 001, 002, 003... é atribuída pelo banco de dados.
   const {error}=await db.from("event_registrations").insert({id:registrationId,registration_code:"PENDENTE",event_slug:C.eventSlug,full_name:name,phone,email,consent:true,receipt_path:path,payment_method:method,registration_source:registrationMode,sheet_responsible:responsible});
-  if(error){showMessage(error.code==="23505"?"E-mail ou telefone já cadastrado. Contate a organização.":"Não foi possível finalizar o cadastro. Contate a organização informando seus dados.");return;}
+  if(error){const detail=String(error.message||"")+" "+String(error.details||"");showMessage(error.code==="23505"&&/registration_event_(phone|email)_unique/i.test(detail)?"E-mail ou telefone já cadastrado. Contate a organização.":/receipt_path|Comprovante PIX ja vinculado/i.test(detail)?"Comprovante PIX já utilizado em outra inscrição. Confirme o arquivo enviado.":"Não foi possível finalizar o cadastro. Contate a organização informando seus dados.");return;}
   const {data:issuedCode,error:codeError}=await db.rpc("event_registration_code_by_id",{p_id:registrationId});
   if(codeError||!issuedCode){
    showMessage("Seu cadastro foi registrado, mas não foi possível recuperar o número de inscrição. Entre em contato com a organização antes de reenviar.");return;
