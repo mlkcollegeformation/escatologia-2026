@@ -88,14 +88,52 @@ async function fetchAllForPdf(){
  }
  throw new Error("Limite de 50.000 inscrições alcançado. Procure a administração do sistema.");
 }
+
+function printableHtml(all){
+ const formatMoney=r=>fmt.format((r.amount_cents??10000)/100);
+ const safe=v=>clean(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+ const paid=all.filter(r=>r.payment_status==="confirmed").reduce((s,r)=>s+(r.amount_cents??10000),0);
+ const pending=all.filter(r=>r.payment_status!=="confirmed").reduce((s,r)=>s+(r.amount_cents??10000),0);
+ const tr=all.map(r=>"<tr>"+[
+  r.registration_code,r.full_name,r.phone,r.email,niceDate(r.created_at),
+  r.registration_type==="couple"?"Casal (R$ 160 / 2)":r.registration_source==="sheet"?"Ficha: "+(r.sheet_responsible||"Não informado"):"Individual online",
+  r.payment_method==="entrance"?"Na entrada":"PIX",
+  r.payment_status==="confirmed"?"Confirmado":"Pendente",
+  formatMoney(r),
+  r.payment_method==="pix"?(r.receipt_path?"PIX anexado":"PIX pendente"):(r.entrance_receipt_path?"Portaria anexado":"Portaria pendente")
+ ].map(v=>"<td>"+safe(v)+"</td>").join("")+"</tr>").join("");
+ const date=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
+ return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Lista completa de inscritos — Escatologia 2026</title>'+
+ '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+ '<style>@page{size:A3 landscape;margin:10mm}body{font:11px Arial,sans-serif;color:#172033;margin:18px}h1{font-size:19px;margin-bottom:6px}p{margin:5px 0}table{border-collapse:collapse;width:100%;table-layout:fixed;margin-top:18px}th,td{border:1px solid #aab2bd;text-align:left;padding:6px 4px;overflow-wrap:anywhere}th{background:#172033;color:white;font-size:10px}tr:nth-child(even){background:#eef1f5}thead{display:table-header-group}tr{break-inside:avoid}button{background:#18273e;color:#fff;border:0;border-radius:5px;padding:12px;margin:16px 0;font-weight:bold}@media print{button,.instructions{display:none}body{margin:0}th{-webkit-print-color-adjust:exact;print-color-adjust:exact}} </style></head><body>'+
+ '<h1>XIV SEMINÁRIO DE ESCATOLOGIA — LISTA DE INSCRITOS</h1>'+
+ '<p>Gerado em: '+safe(date)+' | Total de inscritos: '+all.length+' | Confirmados: '+all.filter(r=>r.payment_status==="confirmed").length+' | Pendentes: '+all.filter(r=>r.payment_status!=="confirmed").length+'</p>'+
+ '<p>Arrecadado confirmado: <b>'+safe(fmt.format(paid/100))+'</b> | A receber: <b>'+safe(fmt.format(pending/100))+'</b> | Total das inscrições: <b>'+safe(fmt.format((paid+pending)/100))+'</b></p>'+
+ '<p class="instructions">Use o botão abaixo e selecione "Salvar como PDF" como destino da impressão.</p>'+
+ '<button onclick="window.print()">SALVAR / IMPRIMIR EM PDF</button>'+
+ '<table><thead><tr>'+["Nº","Participante","WhatsApp","E-mail","Data","Origem / responsável","Pagamento","Status","Valor","Comprovante"].map(x=>"<th>"+x+"</th>").join("")+'</tr></thead><tbody>'+tr+'</tbody></table>'+
+ '<p>Documento administrativo confidencial — dados pessoais de inscritos.</p></body></html>';
+}
 async function exportPdf(){
  const button=document.getElementById("export");
- if(!window.jspdf?.jsPDF){setMsg("O gerador de PDF não carregou. Verifique a conexão e atualize a página.");return;}
- button.disabled=true;button.textContent="GERANDO PDF...";
+ if(button.disabled)return;
+ // Abre no clique, antes de operações assíncronas: evita bloqueio de pop-ups no celular.
+ const viewer=window.open("about:blank","_blank");
+ if(viewer){viewer.document.title="Preparando lista de inscritos";viewer.document.body.textContent="Preparando PDF de todos os inscritos...";}
+ button.disabled=true;button.textContent="GERANDO PDF...";setMsg("Buscando todos os inscritos para gerar o PDF...");
  try{
   const all=await fetchAllForPdf();
-  const pdf=new window.jspdf.jsPDF({orientation:"landscape",unit:"mm",format:"a3"});
-  if(typeof pdf.autoTable!=="function")throw new Error("O módulo de tabelas do PDF não carregou. Atualize a página.");
+  const jsPdf=window.jspdf?.jsPDF;
+  if(!jsPdf || typeof jsPdf.API?.autoTable!=="function"){
+   if(viewer){
+    viewer.document.open();viewer.document.write(printableHtml(all));viewer.document.close();viewer.focus();
+    setMsg("Relatório aberto em outra aba. Clique em SALVAR / IMPRIMIR EM PDF e escolha Salvar como PDF.");
+   }else{
+    throw new Error("O navegador bloqueou a aba de exportação. Permita pop-ups para este site e tente novamente.");
+   }
+   return;
+  }
+  const pdf=new jsPdf({orientation:"landscape",unit:"mm",format:"a3"});
   const total=all.length;
   const confirmed=all.filter(r=>r.payment_status==="confirmed");
   const pending=all.filter(r=>r.payment_status!=="confirmed");
@@ -104,44 +142,39 @@ async function exportPdf(){
   const toReceive=pending.reduce((sum,r)=>sum+(r.amount_cents??10000),0);
   const date=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
   pdf.setFont("helvetica","bold");pdf.setFontSize(16);
-  pdf.text("XIV SEMINÁRIO DE ESCATOLOGIA — LISTA DE INSCRITOS",13,17);
+  pdf.text("XIV SEMINARIO DE ESCATOLOGIA - LISTA DE INSCRITOS",13,17);
   pdf.setFontSize(9);pdf.setFont("helvetica","normal");
-  pdf.text("Relatório administrativo | Gerado em: "+date+" | Todos os inscritos, independentemente dos filtros do painel",13,25);
+  pdf.text("Relatorio administrativo | Gerado em: "+date+" | Todos os inscritos, independentemente de filtros",13,25);
   pdf.text("Inscritos: "+total+"   Confirmados: "+confirmed.length+"   Pendentes: "+pending.length,13,32);
-  pdf.text("Arrecadado confirmado: "+money(paid)+"   A receber (pendentes): "+money(toReceive)+"   Total das inscrições: "+money(paid+toReceive),13,39);
+  pdf.text("Arrecadado confirmado: "+money(paid)+"   A receber: "+money(toReceive)+"   Total das inscricoes: "+money(paid+toReceive),13,39);
   const rows=all.map(r=>{
-   const mode=r.registration_type==="couple"?"Casal (R$ 160 / 2)":r.registration_source==="sheet"?"Ficha: "+(r.sheet_responsible||"Não informado"):"Individual online";
+   const mode=r.registration_type==="couple"?"Casal (R$ 160 / 2)":r.registration_source==="sheet"?"Ficha: "+(r.sheet_responsible||"Nao informado"):"Individual online";
    const receipt=r.payment_method==="pix"?(r.receipt_path?"PIX anexado":"PIX pendente"):(r.entrance_receipt_path?"Portaria anexado":"Portaria pendente");
-   return [clean(r.registration_code),clean(r.full_name),clean(r.phone),clean(r.email),
-     niceDate(r.created_at),mode,
-     r.payment_method==="entrance"?"Na entrada":"PIX",
-     r.payment_status==="confirmed"?"Confirmado":"Pendente",
-     money(r.amount_cents??10000),receipt];
+   return [clean(r.registration_code),clean(r.full_name),clean(r.phone),clean(r.email),niceDate(r.created_at),mode,r.payment_method==="entrance"?"Na entrada":"PIX",r.payment_status==="confirmed"?"Confirmado":"Pendente",money(r.amount_cents??10000),receipt];
   });
   pdf.autoTable({
-   head:[["Nº","PARTICIPANTE","WHATSAPP","E-MAIL","CADASTRO","ORIGEM / RESPONSÁVEL","PAGAMENTO","STATUS","VALOR","COMPROVANTE"]],
-   body:rows,
-   startY:45,
-   margin:{top:15,bottom:18,left:12,right:12},
-   theme:"grid",
-   styles:{font:"helvetica",fontSize:7,cellPadding:2.5,overflow:"linebreak",valign:"middle",lineColor:[215,220,228],lineWidth:.1},
-   headStyles:{fillColor:[19,31,50],textColor:[255,255,255],fontStyle:"bold",fontSize:7},
-   alternateRowStyles:{fillColor:[247,249,252]},
-   columnStyles:{
-    0:{cellWidth:15},1:{cellWidth:53},2:{cellWidth:28},3:{cellWidth:62},
-    4:{cellWidth:30},5:{cellWidth:70},6:{cellWidth:25},
-    7:{cellWidth:24},8:{cellWidth:24},9:{cellWidth:31}
-   },
-   didDrawPage:()=>{
-    const pages=pdf.internal.getNumberOfPages();
-    pdf.setFontSize(8);pdf.setTextColor(100,110,120);
-    pdf.text("Documento administrativo confidencial — dados pessoais de inscritos",12,285);
-    pdf.text("Página "+pages,405,285,{align:"right"});
-   }
+   head:[["N","PARTICIPANTE","WHATSAPP","E-MAIL","CADASTRO","ORIGEM / RESPONSAVEL","PAGAMENTO","STATUS","VALOR","COMPROVANTE"]],
+   body:rows,startY:45,margin:{top:15,bottom:18,left:12,right:12},
+   theme:"grid",styles:{font:"helvetica",fontSize:7,cellPadding:2.5,overflow:"linebreak",valign:"middle",lineColor:[215,220,228],lineWidth:.1},
+   headStyles:{fillColor:[19,31,50],textColor:[255,255,255],fontStyle:"bold",fontSize:7},alternateRowStyles:{fillColor:[247,249,252]},
+   columnStyles:{0:{cellWidth:15},1:{cellWidth:53},2:{cellWidth:28},3:{cellWidth:62},4:{cellWidth:30},5:{cellWidth:70},6:{cellWidth:25},7:{cellWidth:24},8:{cellWidth:24},9:{cellWidth:31}},
+   didDrawPage:()=>{pdf.setFontSize(8);pdf.setTextColor(100,110,120);pdf.text("Documento administrativo confidencial",12,285);pdf.text("Pagina "+pdf.internal.getNumberOfPages(),405,285,{align:"right"});}
   });
-  pdf.save("lista-completa-inscritos-escatologia-2026.pdf");
-  setMsg("PDF gerado com "+total+" inscrição(ões). Inclui todos os registros, inclusive os fora dos filtros visuais.");
- }catch(err){setMsg("Erro ao gerar PDF: "+(err?.message||"tente novamente."));}
- finally{button.disabled=false;button.textContent="EXPORTAR PDF";}
+  const blob=pdf.output("blob");
+  const url=URL.createObjectURL(blob);
+  if(viewer){
+   viewer.location.replace(url);
+   setMsg("PDF aberto em outra aba. Use o menu do navegador para baixar ou compartilhar.");
+  }else{
+   const link=document.createElement("a");link.href=url;link.download="lista-completa-inscritos-escatologia-2026.pdf";document.body.append(link);link.click();link.remove();
+   setMsg("PDF gerado. Verifique os downloads do navegador.");
+  }
+  // A URL é liberada quando a página administrativa é fechada, para não invalidar a visualização.
+ }catch(err){
+  if(viewer){
+   try{viewer.document.open();viewer.document.write(printableHtml(records));viewer.document.close();viewer.focus();}catch(e){viewer.close();}
+  }
+  setMsg("Erro na exportação: "+(err?.message||"tente novamente.")+" Confira a aba aberta para imprimir os dados carregados.");
+ }finally{button.disabled=false;button.textContent="EXPORTAR PDF";}
 }
 document.getElementById("export").onclick=exportPdf;sessionCheck()})();
