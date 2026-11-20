@@ -75,4 +75,73 @@ function renderResponsibleTabs(){
  if(caption)caption.textContent=activeResponsible==="all"?"Total de inscrições no evento: "+records.length:(selected?.name??"Responsável")+" — "+(selected?.count??0)+" inscrição(ões) por ficha";
 }
 function render(){renderResponsibleTabs();const query=document.getElementById("search").value.trim().toLowerCase(),filter=document.getElementById("filter").value;const visible=records.filter(r=>(activeResponsible==="all"||(r.registration_source==="sheet"&&responsibleKey(r.sheet_responsible)===activeResponsible))&&((filter==="all")||(r.payment_status===filter))&&[r.full_name,r.phone,r.registration_code,r.email,r.sheet_responsible].some(s=>clean(s).toLowerCase().includes(query)));const tbody=document.getElementById("registrations");tbody.replaceChildren();if(!visible.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=9;td.textContent="Nenhuma inscrição encontrada.";tr.append(td);tbody.append(tr);return}for(const r of visible){const tr=document.createElement("tr");const cell=(t)=>{const td=document.createElement("td");td.textContent=clean(t);tr.append(td);return td};cell(r.registration_code);cell(r.full_name+(r.registration_type==="couple"?" · CASAL":""));const contact=cell(r.phone),small=document.createElement("small");small.textContent=r.email;contact.append(small);cell(niceDate(r.created_at));cell(r.registration_source==="sheet"?"Ficha — "+(r.sheet_responsible||"Sem responsável"):r.registration_type==="couple"?"Promoção casal · R$ 160,00 (2 pessoas)":"Inscrição online");cell(r.payment_method==="entrance"?"Pagar na entrada":"PIX antecipado");const proofCell=cell("");if(r.receipt_path){const proofButton=document.createElement("button");proofButton.type="button";proofButton.textContent="VER COMPROVANTE";proofButton.onclick=async()=>{const {data,error}=await db.storage.from("escatologia-comprovantes").createSignedUrl(r.receipt_path,120);if(error||!data?.signedUrl){setMsg("Não foi possível abrir o comprovante.");return}window.open(data.signedUrl,"_blank","noopener,noreferrer")};proofCell.append(proofButton)}else if(r.payment_method!=="entrance"){proofCell.textContent="Não enviado"}if(r.payment_method==="entrance")portariaControls(proofCell,r);const status=cell("");const label=document.createElement("span");label.className="status "+r.payment_status;label.textContent=r.payment_status==="confirmed"?"Confirmado":"Pendente";status.append(label);const actions=cell("");const btn=document.createElement("button");btn.className=r.payment_status==="confirmed"?"undo":"";btn.textContent=r.payment_status==="confirmed"?"REVERTER":(r.payment_method==="entrance"?"CONFIRMAR RECEBIMENTO":"CONFIRMAR PIX");btn.onclick=async()=>{const next=r.payment_status==="confirmed"?"pending":"confirmed";if(!confirm(next==="confirmed"?(r.payment_method==="entrance"?(r.registration_type==="couple"?"Confirma o recebimento de R$ 160,00 pelo casal na entrada do evento (duas inscrições)?":"O valor de R$ 100,00 foi recebido na entrada do evento?"):(r.registration_type==="couple"?"Você verificou o PIX de R$ 160,00 referente ao casal e deseja confirmar ambas as inscrições?":"Você verificou o crédito no Bradesco e deseja confirmar este pagamento?")):"Deseja reverter a confirmação de pagamento?"))return;btn.disabled=true;const {data:{user}}=await db.auth.getUser();const groupIds=r.registration_type==="couple"&&r.couple_id?records.filter(entry=>entry.couple_id===r.couple_id).map(entry=>entry.id):[r.id];
- const {error}=await db.from("event_registrations").update({payment_status:next,confirmed_at:next==="confirmed"?new Date().toISOString():null,confirmed_by:next==="confirmed"?user.id:null}).in("id",groupIds).eq("event_slug",cfg.eventSlug);if(error){setMsg("Não foi possível atualizar. Verifique permissões de administrador.");btn.disabled=false;return}setMsg("Inscrição atualizada.");await load()};actions.append(btn);tbody.append(tr)}}async function load(){setMsg("Carregando inscrições...");const {data,error}=await db.from("event_registrations").select("id,created_at,full_name,phone,email,registration_code,payment_status,receipt_path,entrance_receipt_path,payment_method,registration_source,sheet_responsible,registration_type,couple_id,amount_cents").eq("event_slug",cfg.eventSlug).order("created_at",{ascending:false}).limit(5000);if(error){setMsg("Acesso negado ou erro ao carregar inscrições. Confirme a autorização do usuário no Supabase.");return}authorizedRows(data);setMsg(records.length>=5000?"Exibindo até 5.000 registros; exporte periodicamente.":"Dados atualizados.")}async function sessionCheck(){const {data:{session}}=await db.auth.getSession();if(!session){login.classList.remove("hidden");dashboard.classList.add("hidden");return}const {data,isError,error}=await db.from("event_admins").select("user_id").eq("user_id",session.user.id).maybeSingle();if(error||!data){await db.auth.signOut();login.classList.remove("hidden");dashboard.classList.add("hidden");loginMsg.textContent="Sua conta não está autorizada para acessar este painel.";return}login.classList.add("hidden");dashboard.classList.remove("hidden");await load()}loginForm.addEventListener("submit",async e=>{e.preventDefault();loginMsg.textContent="Validando acesso...";const f=new FormData(loginForm);const {error}=await db.auth.signInWithPassword({email:String(f.get("email")),password:String(f.get("password"))});if(error){loginMsg.textContent="Credenciais inválidas ou conta sem acesso.";return}loginMsg.textContent="";await sessionCheck()});document.getElementById("logout").onclick=async()=>{await db.auth.signOut();records=[];dashboard.classList.add("hidden");login.classList.remove("hidden")};document.getElementById("reload").onclick=load;document.getElementById("search").oninput=render;document.getElementById("filter").onchange=render;document.getElementById("export").onclick=()=>{const header=["codigo","nome","whatsapp","email","cadastrado_em","origem","responsavel_ficha","modalidade","status","comprovante","tipo_inscricao","grupo_casal","valor_individual"];const rows=records.map(r=>[r.registration_code,r.full_name,r.phone,r.email,r.created_at,r.registration_source||"online",r.sheet_responsible||"",r.payment_method==="entrance"?"Na entrada":"PIX",r.payment_status,r.receipt_path?"Sim":"Não",r.registration_type||"individual",r.couple_id||"",((r.amount_cents??10000)/100).toFixed(2)]);const safe=v=>{const s=clean(v);const escaped=/^[=+@-]/.test(s)?"'"+s:s;return '"'+escaped.replace(/"/g,'""')+'"'};const csv="\ufeff"+[header,...rows].map(row=>row.map(safe).join(";")).join("\r\n");const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="inscricoes-escatologia-2026.csv";a.click();URL.revokeObjectURL(url)};sessionCheck()})();
+ const {error}=await db.from("event_registrations").update({payment_status:next,confirmed_at:next==="confirmed"?new Date().toISOString():null,confirmed_by:next==="confirmed"?user.id:null}).in("id",groupIds).eq("event_slug",cfg.eventSlug);if(error){setMsg("Não foi possível atualizar. Verifique permissões de administrador.");btn.disabled=false;return}setMsg("Inscrição atualizada.");await load()};actions.append(btn);tbody.append(tr)}}async function load(){setMsg("Carregando inscrições...");const {data,error}=await db.from("event_registrations").select("id,created_at,full_name,phone,email,registration_code,payment_status,receipt_path,entrance_receipt_path,payment_method,registration_source,sheet_responsible,registration_type,couple_id,amount_cents").eq("event_slug",cfg.eventSlug).order("created_at",{ascending:false}).limit(5000);if(error){setMsg("Acesso negado ou erro ao carregar inscrições. Confirme a autorização do usuário no Supabase.");return}authorizedRows(data);setMsg(records.length>=5000?"Exibindo até 5.000 registros; exporte periodicamente.":"Dados atualizados.")}async function sessionCheck(){const {data:{session}}=await db.auth.getSession();if(!session){login.classList.remove("hidden");dashboard.classList.add("hidden");return}const {data,isError,error}=await db.from("event_admins").select("user_id").eq("user_id",session.user.id).maybeSingle();if(error||!data){await db.auth.signOut();login.classList.remove("hidden");dashboard.classList.add("hidden");loginMsg.textContent="Sua conta não está autorizada para acessar este painel.";return}login.classList.add("hidden");dashboard.classList.remove("hidden");await load()}loginForm.addEventListener("submit",async e=>{e.preventDefault();loginMsg.textContent="Validando acesso...";const f=new FormData(loginForm);const {error}=await db.auth.signInWithPassword({email:String(f.get("email")),password:String(f.get("password"))});if(error){loginMsg.textContent="Credenciais inválidas ou conta sem acesso.";return}loginMsg.textContent="";await sessionCheck()});document.getElementById("logout").onclick=async()=>{await db.auth.signOut();records=[];dashboard.classList.add("hidden");login.classList.remove("hidden")};document.getElementById("reload").onclick=load;document.getElementById("search").oninput=render;document.getElementById("filter").onchange=render;
+async function fetchAllForPdf(){
+ const all=[],step=500;
+ for(let from=0;from<50000;from+=step){
+  const {data,error}=await db.from("event_registrations")
+   .select("registration_code,full_name,phone,email,created_at,registration_source,sheet_responsible,registration_type,couple_id,payment_method,payment_status,receipt_path,entrance_receipt_path,amount_cents")
+   .eq("event_slug",cfg.eventSlug).order("registration_code",{ascending:true}).range(from,from+step-1);
+  if(error)throw new Error("Não foi possível consultar a listagem completa. "+error.message);
+  all.push(...(data||[]));
+  if(!data||data.length<step)return all;
+ }
+ throw new Error("Limite de 50.000 inscrições alcançado. Procure a administração do sistema.");
+}
+async function exportPdf(){
+ const button=document.getElementById("export");
+ if(!window.jspdf?.jsPDF){setMsg("O gerador de PDF não carregou. Verifique a conexão e atualize a página.");return;}
+ button.disabled=true;button.textContent="GERANDO PDF...";
+ try{
+  const all=await fetchAllForPdf();
+  const pdf=new window.jspdf.jsPDF({orientation:"landscape",unit:"mm",format:"a3"});
+  if(typeof pdf.autoTable!=="function")throw new Error("O módulo de tabelas do PDF não carregou. Atualize a página.");
+  const total=all.length;
+  const confirmed=all.filter(r=>r.payment_status==="confirmed");
+  const pending=all.filter(r=>r.payment_status!=="confirmed");
+  const money=cents=>fmt.format(cents/100);
+  const paid=confirmed.reduce((sum,r)=>sum+(r.amount_cents??10000),0);
+  const toReceive=pending.reduce((sum,r)=>sum+(r.amount_cents??10000),0);
+  const date=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
+  pdf.setFont("helvetica","bold");pdf.setFontSize(16);
+  pdf.text("XIV SEMINÁRIO DE ESCATOLOGIA — LISTA DE INSCRITOS",13,17);
+  pdf.setFontSize(9);pdf.setFont("helvetica","normal");
+  pdf.text("Relatório administrativo | Gerado em: "+date+" | Todos os inscritos, independentemente dos filtros do painel",13,25);
+  pdf.text("Inscritos: "+total+"   Confirmados: "+confirmed.length+"   Pendentes: "+pending.length,13,32);
+  pdf.text("Arrecadado confirmado: "+money(paid)+"   A receber (pendentes): "+money(toReceive)+"   Total das inscrições: "+money(paid+toReceive),13,39);
+  const rows=all.map(r=>{
+   const mode=r.registration_type==="couple"?"Casal (R$ 160 / 2)":r.registration_source==="sheet"?"Ficha: "+(r.sheet_responsible||"Não informado"):"Individual online";
+   const receipt=r.payment_method==="pix"?(r.receipt_path?"PIX anexado":"PIX pendente"):(r.entrance_receipt_path?"Portaria anexado":"Portaria pendente");
+   return [clean(r.registration_code),clean(r.full_name),clean(r.phone),clean(r.email),
+     niceDate(r.created_at),mode,
+     r.payment_method==="entrance"?"Na entrada":"PIX",
+     r.payment_status==="confirmed"?"Confirmado":"Pendente",
+     money(r.amount_cents??10000),receipt];
+  });
+  pdf.autoTable({
+   head:[["Nº","PARTICIPANTE","WHATSAPP","E-MAIL","CADASTRO","ORIGEM / RESPONSÁVEL","PAGAMENTO","STATUS","VALOR","COMPROVANTE"]],
+   body:rows,
+   startY:45,
+   margin:{top:15,bottom:18,left:12,right:12},
+   theme:"grid",
+   styles:{font:"helvetica",fontSize:7,cellPadding:2.5,overflow:"linebreak",valign:"middle",lineColor:[215,220,228],lineWidth:.1},
+   headStyles:{fillColor:[19,31,50],textColor:[255,255,255],fontStyle:"bold",fontSize:7},
+   alternateRowStyles:{fillColor:[247,249,252]},
+   columnStyles:{
+    0:{cellWidth:15},1:{cellWidth:53},2:{cellWidth:28},3:{cellWidth:62},
+    4:{cellWidth:30},5:{cellWidth:70},6:{cellWidth:25},
+    7:{cellWidth:24},8:{cellWidth:24},9:{cellWidth:31}
+   },
+   didDrawPage:()=>{
+    const pages=pdf.internal.getNumberOfPages();
+    pdf.setFontSize(8);pdf.setTextColor(100,110,120);
+    pdf.text("Documento administrativo confidencial — dados pessoais de inscritos",12,285);
+    pdf.text("Página "+pages,405,285,{align:"right"});
+   }
+  });
+  pdf.save("lista-completa-inscritos-escatologia-2026.pdf");
+  setMsg("PDF gerado com "+total+" inscrição(ões). Inclui todos os registros, inclusive os fora dos filtros visuais.");
+ }catch(err){setMsg("Erro ao gerar PDF: "+(err?.message||"tente novamente."));}
+ finally{button.disabled=false;button.textContent="EXPORTAR PDF";}
+}
+document.getElementById("export").onclick=exportPdf;sessionCheck()})();
