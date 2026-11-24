@@ -105,92 +105,165 @@ async function fetchAllForPdf(){
  throw new Error("Limite de 50.000 inscrições alcançado. Procure a administração do sistema.");
 }
 
+
+function reportData(all){
+ const sorted=[...all].sort((a,b)=>String(a.registration_code).localeCompare(String(b.registration_code),"pt-BR",{numeric:true}));
+ const confirmed=sorted.filter(r=>r.payment_status==="confirmed");
+ const pending=sorted.filter(r=>r.payment_status!=="confirmed");
+ const totalCents=rows=>rows.reduce((sum,r)=>sum+(Number(r.amount_cents) || 10000),0);
+ return {all:sorted,confirmed,pending,total:totalCents(sorted),paid:totalCents(confirmed),due:totalCents(pending)};
+}
+function reportMode(r){
+ return r.registration_type==="couple"?"Casal · R$ 80/pessoa":r.registration_source==="sheet"?"Ficha · "+(r.sheet_responsible||"Sem responsável"):"Individual · Online";
+}
+function reportProof(r){
+ if(r.payment_method==="pix")return r.receipt_path?"PIX anexado":"PIX não anexado";
+ return r.entrance_receipt_path?"Comprovante portaria":"Pagamento na entrada";
+}
+function reportSectionData(data){
+ return [
+  {id:"all",index:"01",title:"LISTA GERAL DE INSCRITOS",description:"Todos os participantes registrados, independentemente da situação de pagamento.",rows:data.all,amount:data.total,amountLabel:"TOTAL EM INSCRIÇÕES",color:[191,154,89]},
+  {id:"confirmed",index:"02",title:"INSCRIÇÕES CONFIRMADAS",description:"Participantes com pagamento marcado como confirmado pela administração.",rows:data.confirmed,amount:data.paid,amountLabel:"VALOR CONFIRMADO",color:[47,143,109]},
+  {id:"pending",index:"03",title:"INSCRIÇÕES PENDENTES",description:"Participantes aguardando confirmação de pagamento, incluindo pagamento na entrada.",rows:data.pending,amount:data.due,amountLabel:"VALOR PENDENTE",color:[177,119,48]}
+ ];
+}
 function printableHtml(all){
- const formatMoney=r=>fmt.format((r.amount_cents??10000)/100);
+ const data=reportData(all),sections=reportSectionData(data);
+ const money=cents=>fmt.format(cents/100);
  const safe=v=>clean(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
- const paid=all.filter(r=>r.payment_status==="confirmed").reduce((s,r)=>s+(r.amount_cents??10000),0);
- const pending=all.filter(r=>r.payment_status!=="confirmed").reduce((s,r)=>s+(r.amount_cents??10000),0);
- const tr=all.map(r=>"<tr>"+[
-  r.registration_code,r.full_name,r.phone,r.email,niceDate(r.created_at),
-  r.registration_type==="couple"?"Casal (R$ 160 / 2)":r.registration_source==="sheet"?"Ficha: "+(r.sheet_responsible||"Não informado"):"Individual online",
+ const time=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
+ const row=r=>"<tr>"+[
+  r.registration_code,r.full_name,r.phone,r.email,niceDate(r.created_at),reportMode(r),
   r.payment_method==="entrance"?"Na entrada":"PIX",
   r.payment_status==="confirmed"?"Confirmado":"Pendente",
-  formatMoney(r),
-  r.payment_method==="pix"?(r.receipt_path?"PIX anexado":"PIX pendente"):(r.entrance_receipt_path?"Portaria anexado":"Portaria pendente")
- ].map(v=>"<td>"+safe(v)+"</td>").join("")+"</tr>").join("");
+  money(Number(r.amount_cents)??10000),reportProof(r)
+ ].map(x=>"<td>"+safe(x)+"</td>").join("")+"</tr>";
+ const heads=["Nº","PARTICIPANTE","WHATSAPP","E-MAIL","CADASTRO","ORIGEM / RESPONSÁVEL","PAGAMENTO","STATUS","VALOR","COMPROVANTE"];
+ const blocks=sections.map(s=>'<section class="report-section"><div class="section-label">RELATÓRIO '+s.index+' / 03</div><h2>'+safe(s.title)+'</h2><p class="muted">'+safe(s.description)+'</p><div class="section-summary"><b>'+s.rows.length+' PARTICIPANTES</b><b>'+safe(s.amountLabel)+': '+safe(money(s.amount))+'</b></div><table><thead><tr>'+heads.map(x=>"<th>"+x+"</th>").join("")+'</tr></thead><tbody>'+(s.rows.length?s.rows.map(row).join(""):'<tr><td colspan="10" class="empty">Nenhuma inscrição nesta categoria.</td></tr>')+'</tbody></table></section>').join("");
+ return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Relatório de Inscritos — Escatologia 2026</title><style>'+
+ '@page{size:A3 landscape;margin:13mm}*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#162235;background:#f6f7fa;margin:0;padding:18px}.cover{background:#101d31;color:#fff;padding:38px 40px;border-top:7px solid #caa568;page-break-after:always;min-height:220mm}.eyebrow{color:#ead19b;font-weight:bold;letter-spacing:2px;font-size:11px}.cover h1{font-size:30px;margin:22px 0 8px}.cover .sub{color:#d4dbea;font-size:16px}.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:38px}.kpi{background:#21334b;border:1px solid #526078;padding:19px;border-radius:5px}.kpi span{display:block;color:#ccd5e0;font-size:11px;margin-bottom:10px}.kpi b{font-size:24px;color:#f1d497}.cover .foot{margin-top:40px;color:#c7cfda}.report-section{background:white;padding:23px 12px;break-before:page;page-break-before:always}.section-label{font-weight:bold;color:#af8447;letter-spacing:1.5px;font-size:11px}.report-section h2{font-size:24px;color:#14233b;margin:9px 0}.muted{color:#59667a}.section-summary{background:#f0e8db;border-left:5px solid #bd9455;padding:13px;display:flex;gap:34px;justify-content:space-between;margin:18px 0}table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:10px}th{background:#17263e;color:#fff;padding:9px 5px;text-align:left;word-break:break-word}td{border-bottom:1px solid #d9e0e8;padding:8px 5px;word-break:break-word;vertical-align:top}tr:nth-child(even){background:#f2f5f8}thead{display:table-header-group}tr{break-inside:avoid}.empty{text-align:center;padding:22px;color:#59667a}.toolbar{background:#e5e9ef;padding:12px;border-radius:5px;margin-bottom:12px}button{background:#17263e;color:#fff;font-weight:bold;border:0;border-radius:4px;padding:12px 16px}@media print{body{background:white;padding:0}.toolbar{display:none}.cover{-webkit-print-color-adjust:exact;print-color-adjust:exact}th,.section-summary,.kpi{print-color-adjust:exact;-webkit-print-color-adjust:exact}.report-section{padding:10px 0}}</style></head><body>'+
+ '<div class="toolbar">Relatório gerado. Clique em <button onclick="window.print()">SALVAR COMO PDF / IMPRIMIR</button> e escolha “Salvar como PDF”.</div>'+
+ '<section class="cover"><div class="eyebrow">MLK COLLEGE FORMATION · RELATÓRIO ADMINISTRATIVO</div><h1>XIV SEMINÁRIO DE ESCATOLOGIA<br>E BATALHA ESPIRITUAL 2026</h1><div class="sub">O PALCO ESTÁ PRONTO · Controle de inscrições e pagamentos</div><p>Emitido em '+safe(time)+' · 04 a 06 de dezembro de 2026</p><div class="kpis">'+[
+  ["INSCRITOS",data.all.length],["PAGAMENTOS CONFIRMADOS",data.confirmed.length],["PAGAMENTOS PENDENTES",data.pending.length],
+  ["ARRECADADO",money(data.paid)],["A RECEBER",money(data.due)],["TOTAL DE INSCRIÇÕES",money(data.total)]
+ ].map(([label,value])=>'<div class="kpi"><span>'+safe(label)+'</span><b>'+safe(value)+'</b></div>').join("")+'</div><p class="foot">Este documento contém dados pessoais de participantes e destina-se exclusivamente à organização do seminário.</p></section>'+blocks+'</body></html>';
+}
+function makePremiumPdf(all){
+ const data=reportData(all), sections=reportSectionData(data), money=cents=>fmt.format(cents/100);
+ const pdf=new window.jspdf.jsPDF({orientation:"landscape",unit:"mm",format:"a3",compress:true});
+ if(typeof pdf.autoTable!=="function")throw Error("Biblioteca de tabelas PDF indisponível.");
+ const W=pdf.internal.pageSize.getWidth(),H=pdf.internal.pageSize.getHeight();
+ const ink=[19,31,51],gold=[199,159,91],white=[255,255,255],muted=[101,115,134];
  const date=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
- return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Lista completa de inscritos — Escatologia 2026</title>'+
- '<meta name="viewport" content="width=device-width,initial-scale=1">'+
- '<style>@page{size:A3 landscape;margin:10mm}body{font:11px Arial,sans-serif;color:#172033;margin:18px}h1{font-size:19px;margin-bottom:6px}p{margin:5px 0}table{border-collapse:collapse;width:100%;table-layout:fixed;margin-top:18px}th,td{border:1px solid #aab2bd;text-align:left;padding:6px 4px;overflow-wrap:anywhere}th{background:#172033;color:white;font-size:10px}tr:nth-child(even){background:#eef1f5}thead{display:table-header-group}tr{break-inside:avoid}button{background:#18273e;color:#fff;border:0;border-radius:5px;padding:12px;margin:16px 0;font-weight:bold}@media print{button,.instructions{display:none}body{margin:0}th{-webkit-print-color-adjust:exact;print-color-adjust:exact}} </style></head><body>'+
- '<h1>XIV SEMINÁRIO DE ESCATOLOGIA — LISTA DE INSCRITOS</h1>'+
- '<p>Gerado em: '+safe(date)+' | Total de inscritos: '+all.length+' | Confirmados: '+all.filter(r=>r.payment_status==="confirmed").length+' | Pendentes: '+all.filter(r=>r.payment_status!=="confirmed").length+'</p>'+
- '<p>Arrecadado confirmado: <b>'+safe(fmt.format(paid/100))+'</b> | A receber: <b>'+safe(fmt.format(pending/100))+'</b> | Total das inscrições: <b>'+safe(fmt.format((paid+pending)/100))+'</b></p>'+
- '<p class="instructions">Use o botão abaixo e selecione "Salvar como PDF" como destino da impressão.</p>'+
- '<button onclick="window.print()">SALVAR / IMPRIMIR EM PDF</button>'+
- '<table><thead><tr>'+["Nº","Participante","WhatsApp","E-mail","Data","Origem / responsável","Pagamento","Status","Valor","Comprovante"].map(x=>"<th>"+x+"</th>").join("")+'</tr></thead><tbody>'+tr+'</tbody></table>'+
- '<p>Documento administrativo confidencial — dados pessoais de inscritos.</p></body></html>';
+ const fill=(rgb)=>pdf.setFillColor(...rgb);
+ const textColor=(rgb)=>pdf.setTextColor(...rgb);
+ const valueCard=(x,y,w,h,label,value)=>{
+  fill([34,49,72]);pdf.roundedRect(x,y,w,h,3,3,"F");
+  pdf.setDrawColor(85,102,125);pdf.roundedRect(x,y,w,h,3,3,"S");
+  textColor([198,209,223]);pdf.setFont("helvetica","bold");pdf.setFontSize(9);pdf.text(label,x+8,y+13);
+  textColor([245,219,161]);pdf.setFontSize(21);pdf.text(String(value),x+8,y+31);
+ };
+ // Capa premium, sem depender de imagens externas.
+ fill(ink);pdf.rect(0,0,W,H,"F");
+ fill(gold);pdf.rect(0,0,W,7,"F");
+ fill([28,43,65]);pdf.rect(0,H-47,W,47,"F");
+ textColor([227,198,142]);pdf.setFont("helvetica","bold");pdf.setFontSize(12);
+ pdf.text("MLK COLLEGE FORMATION  /  RELATÓRIO ADMINISTRATIVO",23,31);
+ textColor(white);pdf.setFontSize(30);pdf.text("XIV SEMINÁRIO DE ESCATOLOGIA",23,61);
+ pdf.setFontSize(22);pdf.text("E BATALHA ESPIRITUAL 2026",23,74);
+ textColor([220,226,235]);pdf.setFontSize(14);pdf.setFont("helvetica","normal");
+ pdf.text("O PALCO ESTÁ PRONTO  |  Controle de inscrições e pagamentos",23,90);
+ fill(gold);pdf.rect(23,101,66,1.5,"F");
+ pdf.setFontSize(10);pdf.text("Evento: 04 a 06 de dezembro de 2026   •   Emitido em: "+date,23,114);
+ const cw=(W-59)/3, gap=6;
+ const stats=[
+  ["INSCRITOS",data.all.length],
+  ["CONFIRMADOS",data.confirmed.length],
+  ["PENDENTES",data.pending.length],
+  ["ARRECADADO",money(data.paid)],
+  ["A RECEBER",money(data.due)],
+  ["TOTAL DE INSCRIÇÕES",money(data.total)]
+ ];
+ stats.forEach(([label,value],i)=>{
+  const col=i%3,row=Math.floor(i/3);
+  valueCard(23+col*(cw+gap),134+row*54,cw,45,label,value);
+ });
+ textColor([206,213,226]);pdf.setFontSize(9);
+ pdf.text("Documento confidencial. Contém dados pessoais destinados exclusivamente à organização do evento.",23,H-24);
+ const headings=["Nº","PARTICIPANTE","WHATSAPP","E-MAIL","DATA","ORIGEM / RESPONSÁVEL","PAGAMENTO","STATUS","VALOR","COMPROVANTE"];
+ const widths={0:{cellWidth:15},1:{cellWidth:53},2:{cellWidth:28},3:{cellWidth:62},4:{cellWidth:29},5:{cellWidth:73},6:{cellWidth:25},7:{cellWidth:25},8:{cellWidth:25},9:{cellWidth:32}};
+ const sectionHeader=(section)=>{
+  fill(ink);pdf.rect(0,0,W,40,"F");
+  fill(section.color);pdf.rect(0,0,7,40,"F");
+  textColor([229,202,151]);pdf.setFont("helvetica","bold");pdf.setFontSize(9);
+  pdf.text("RELATÓRIO "+section.index+" / 03   ·   ESCATOLOGIA 2026",16,13);
+  textColor(white);pdf.setFontSize(19);pdf.text(section.title,16,29);
+ };
+ sections.forEach((section)=>{
+  pdf.addPage();
+  sectionHeader(section);
+  textColor(muted);pdf.setFont("helvetica","normal");pdf.setFontSize(10);
+  pdf.text(section.description,16,49);
+  fill([242,237,228]);pdf.roundedRect(15,55,W-30,19,2,2,"F");
+  textColor(ink);pdf.setFont("helvetica","bold");pdf.setFontSize(11);
+  pdf.text("PARTICIPANTES: "+section.rows.length,21,67);
+  pdf.text(section.amountLabel+": "+money(section.amount),W-21,67,{align:"right"});
+  const rows=section.rows.map(r=>[
+   clean(r.registration_code),clean(r.full_name),clean(r.phone),clean(r.email),
+   niceDate(r.created_at),reportMode(r),r.payment_method==="entrance"?"Na entrada":"PIX",
+   r.payment_status==="confirmed"?"Confirmado":"Pendente",
+   money(Number(r.amount_cents)??10000),reportProof(r)
+  ]);
+  if(!rows.length){
+   fill([246,248,251]);pdf.roundedRect(15,82,W-30,24,2,2,"F");
+   textColor(muted);pdf.setFontSize(11);pdf.text("Nenhuma inscrição nesta categoria.",23,97);
+  }else{
+   pdf.autoTable({
+    head:[headings],body:rows,startY:81,margin:{top:48,bottom:17,left:15,right:15},
+    theme:"striped",showHead:"everyPage",rowPageBreak:"avoid",
+    styles:{font:"helvetica",fontSize:7.6,cellPadding:2.7,overflow:"linebreak",valign:"middle",textColor:ink,lineWidth:.08,lineColor:[221,225,230]},
+    headStyles:{fillColor:ink,textColor:white,fontStyle:"bold",fontSize:7.5,cellPadding:3.5},
+    alternateRowStyles:{fillColor:[246,248,251]},
+    columnStyles:widths,
+    didDrawPage:(ctx)=>{if(ctx.pageNumber>1)sectionHeader(section);}
+   });
+  }
+ });
+ const count=pdf.internal.getNumberOfPages();
+ for(let n=1;n<=count;n++){
+  pdf.setPage(n);
+  pdf.setDrawColor(215,220,227);pdf.line(15,H-13,W-15,H-13);
+  textColor(muted);pdf.setFont("helvetica","normal");pdf.setFontSize(8);
+  pdf.text("MLK COLLEGE FORMATION  •  Relatório confidencial  •  "+date,15,H-8);
+  pdf.text("PÁGINA "+n+" / "+count,W-15,H-8,{align:"right"});
+ }
+ return pdf;
 }
 async function exportPdf(){
  const button=document.getElementById("export");
  if(button.disabled)return;
- // Abre no clique, antes de operações assíncronas: evita bloqueio de pop-ups no celular.
+ // A aba é aberta no clique para evitar bloqueios dos navegadores mobile.
  const viewer=window.open("about:blank","_blank");
- if(viewer){viewer.document.title="Preparando lista de inscritos";viewer.document.body.textContent="Preparando PDF de todos os inscritos...";}
- button.disabled=true;button.textContent="GERANDO PDF...";setMsg("Buscando todos os inscritos para gerar o PDF...");
+ if(viewer){viewer.document.title="Preparando relatório";viewer.document.body.textContent="Preparando relatório de inscrições...";}
+ button.disabled=true;button.textContent="GERANDO PDF...";
+ setMsg("Reunindo a lista geral, confirmados e pendentes...");
  try{
   const all=await fetchAllForPdf();
-  const jsPdf=window.jspdf?.jsPDF;
-  if(!jsPdf || typeof jsPdf.API?.autoTable!=="function"){
-   if(viewer){
-    viewer.document.open();viewer.document.write(printableHtml(all));viewer.document.close();viewer.focus();
-    setMsg("Relatório aberto em outra aba. Clique em SALVAR / IMPRIMIR EM PDF e escolha Salvar como PDF.");
-   }else{
-    throw new Error("O navegador bloqueou a aba de exportação. Permita pop-ups para este site e tente novamente.");
-   }
+  if(!window.jspdf?.jsPDF || typeof window.jspdf.jsPDF.API?.autoTable!=="function"){
+   if(!viewer)throw Error("Abra as permissões de novas abas do navegador e tente novamente.");
+   viewer.document.open();viewer.document.write(printableHtml(all));viewer.document.close();viewer.focus();
+   setMsg("Relatório premium aberto. Use SALVAR COMO PDF / IMPRIMIR e selecione Salvar como PDF.");
    return;
   }
-  const pdf=new jsPdf({orientation:"landscape",unit:"mm",format:"a3"});
-  const total=all.length;
-  const confirmed=all.filter(r=>r.payment_status==="confirmed");
-  const pending=all.filter(r=>r.payment_status!=="confirmed");
-  const money=cents=>fmt.format(cents/100);
-  const paid=confirmed.reduce((sum,r)=>sum+(r.amount_cents??10000),0);
-  const toReceive=pending.reduce((sum,r)=>sum+(r.amount_cents??10000),0);
-  const date=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
-  pdf.setFont("helvetica","bold");pdf.setFontSize(16);
-  pdf.text("XIV SEMINARIO DE ESCATOLOGIA - LISTA DE INSCRITOS",13,17);
-  pdf.setFontSize(9);pdf.setFont("helvetica","normal");
-  pdf.text("Relatorio administrativo | Gerado em: "+date+" | Todos os inscritos, independentemente de filtros",13,25);
-  pdf.text("Inscritos: "+total+"   Confirmados: "+confirmed.length+"   Pendentes: "+pending.length,13,32);
-  pdf.text("Arrecadado confirmado: "+money(paid)+"   A receber: "+money(toReceive)+"   Total das inscricoes: "+money(paid+toReceive),13,39);
-  const rows=all.map(r=>{
-   const mode=r.registration_type==="couple"?"Casal (R$ 160 / 2)":r.registration_source==="sheet"?"Ficha: "+(r.sheet_responsible||"Nao informado"):"Individual online";
-   const receipt=r.payment_method==="pix"?(r.receipt_path?"PIX anexado":"PIX pendente"):(r.entrance_receipt_path?"Portaria anexado":"Portaria pendente");
-   return [clean(r.registration_code),clean(r.full_name),clean(r.phone),clean(r.email),niceDate(r.created_at),mode,r.payment_method==="entrance"?"Na entrada":"PIX",r.payment_status==="confirmed"?"Confirmado":"Pendente",money(r.amount_cents??10000),receipt];
-  });
-  pdf.autoTable({
-   head:[["N","PARTICIPANTE","WHATSAPP","E-MAIL","CADASTRO","ORIGEM / RESPONSAVEL","PAGAMENTO","STATUS","VALOR","COMPROVANTE"]],
-   body:rows,startY:45,margin:{top:15,bottom:18,left:12,right:12},
-   theme:"grid",styles:{font:"helvetica",fontSize:7,cellPadding:2.5,overflow:"linebreak",valign:"middle",lineColor:[215,220,228],lineWidth:.1},
-   headStyles:{fillColor:[19,31,50],textColor:[255,255,255],fontStyle:"bold",fontSize:7},alternateRowStyles:{fillColor:[247,249,252]},
-   columnStyles:{0:{cellWidth:15},1:{cellWidth:53},2:{cellWidth:28},3:{cellWidth:62},4:{cellWidth:30},5:{cellWidth:70},6:{cellWidth:25},7:{cellWidth:24},8:{cellWidth:24},9:{cellWidth:31}},
-   didDrawPage:()=>{pdf.setFontSize(8);pdf.setTextColor(100,110,120);pdf.text("Documento administrativo confidencial",12,285);pdf.text("Pagina "+pdf.internal.getNumberOfPages(),405,285,{align:"right"});}
-  });
-  const blob=pdf.output("blob");
-  const url=URL.createObjectURL(blob);
-  if(viewer){
-   viewer.location.replace(url);
-   setMsg("PDF aberto em outra aba. Use o menu do navegador para baixar ou compartilhar.");
-  }else{
-   const link=document.createElement("a");link.href=url;link.download="lista-completa-inscritos-escatologia-2026.pdf";document.body.append(link);link.click();link.remove();
-   setMsg("PDF gerado. Verifique os downloads do navegador.");
+  const pdf=makePremiumPdf(all),blob=pdf.output("blob"),url=URL.createObjectURL(blob);
+  if(viewer){viewer.location.replace(url);viewer.focus();setMsg("Relatório PDF completo aberto: lista geral, confirmados e pendentes.");}
+  else{
+   const a=document.createElement("a");a.href=url;a.download="relatorio-premium-inscricoes-escatologia-2026.pdf";
+   document.body.append(a);a.click();a.remove();setMsg("Relatório PDF completo gerado. Confira seus downloads.");
   }
-  // A URL é liberada quando a página administrativa é fechada, para não invalidar a visualização.
  }catch(err){
-  if(viewer){
-   try{viewer.document.open();viewer.document.write(printableHtml(records));viewer.document.close();viewer.focus();}catch(e){viewer.close();}
-  }
-  setMsg("Erro na exportação: "+(err?.message||"tente novamente.")+" Confira a aba aberta para imprimir os dados carregados.");
+  if(viewer){try{viewer.document.body.textContent="Não foi possível gerar o relatório: "+(err?.message||"Erro desconhecido");}catch(_){viewer.close();}}
+  setMsg("Falha na exportação: "+(err?.message||"tente novamente."));
  }finally{button.disabled=false;button.textContent="EXPORTAR PDF";}
 }
 document.getElementById("export").onclick=exportPdf;sessionCheck()})();
