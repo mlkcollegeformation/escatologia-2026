@@ -127,116 +127,95 @@ function reportSectionData(data){
   {id:"pending",index:"03",title:"INSCRIÇÕES PENDENTES",description:"Participantes aguardando confirmação de pagamento, incluindo pagamento na entrada.",rows:data.pending,amount:data.due,amountLabel:"VALOR PENDENTE",color:[177,119,48]}
  ];
 }
+
 function printableHtml(all){
- const data=reportData(all),sections=reportSectionData(data);
+ const data=reportData(all), sections=reportSectionData(data);
  const money=cents=>fmt.format(cents/100);
  const safe=v=>clean(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
- const time=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
- const row=r=>"<tr>"+[
-  r.registration_code,r.full_name,r.phone,r.email,niceDate(r.created_at),reportMode(r),
-  r.payment_method==="entrance"?"Na entrada":"PIX",
-  r.payment_status==="confirmed"?"Confirmado":"Pendente",
-  money(Number(r.amount_cents)??10000),reportProof(r)
- ].map(x=>"<td>"+safe(x)+"</td>").join("")+"</tr>";
- const heads=["Nº","PARTICIPANTE","WHATSAPP","E-MAIL","CADASTRO","ORIGEM / RESPONSÁVEL","PAGAMENTO","STATUS","VALOR","COMPROVANTE"];
- const blocks=sections.map(s=>'<section class="report-section"><div class="section-label">RELATÓRIO '+s.index+' / 03</div><h2>'+safe(s.title)+'</h2><p class="muted">'+safe(s.description)+'</p><div class="section-summary"><b>'+s.rows.length+' PARTICIPANTES</b><b>'+safe(s.amountLabel)+': '+safe(money(s.amount))+'</b></div><table><thead><tr>'+heads.map(x=>"<th>"+x+"</th>").join("")+'</tr></thead><tbody>'+(s.rows.length?s.rows.map(row).join(""):'<tr><td colspan="10" class="empty">Nenhuma inscrição nesta categoria.</td></tr>')+'</tbody></table></section>').join("");
- return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Relatório de Inscritos — Escatologia 2026</title><style>'+
- '@page{size:A3 landscape;margin:13mm}*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#162235;background:#f6f7fa;margin:0;padding:18px}.cover{background:#101d31;color:#fff;padding:38px 40px;border-top:7px solid #caa568;page-break-after:always;min-height:220mm}.eyebrow{color:#ead19b;font-weight:bold;letter-spacing:2px;font-size:11px}.cover h1{font-size:30px;margin:22px 0 8px}.cover .sub{color:#d4dbea;font-size:16px}.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:38px}.kpi{background:#21334b;border:1px solid #526078;padding:19px;border-radius:5px}.kpi span{display:block;color:#ccd5e0;font-size:11px;margin-bottom:10px}.kpi b{font-size:24px;color:#f1d497}.cover .foot{margin-top:40px;color:#c7cfda}.report-section{background:white;padding:23px 12px;break-before:page;page-break-before:always}.section-label{font-weight:bold;color:#af8447;letter-spacing:1.5px;font-size:11px}.report-section h2{font-size:24px;color:#14233b;margin:9px 0}.muted{color:#59667a}.section-summary{background:#f0e8db;border-left:5px solid #bd9455;padding:13px;display:flex;gap:34px;justify-content:space-between;margin:18px 0}table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:10px}th{background:#17263e;color:#fff;padding:9px 5px;text-align:left;word-break:break-word}td{border-bottom:1px solid #d9e0e8;padding:8px 5px;word-break:break-word;vertical-align:top}tr:nth-child(even){background:#f2f5f8}thead{display:table-header-group}tr{break-inside:avoid}.empty{text-align:center;padding:22px;color:#59667a}.toolbar{background:#e5e9ef;padding:12px;border-radius:5px;margin-bottom:12px}button{background:#17263e;color:#fff;font-weight:bold;border:0;border-radius:4px;padding:12px 16px}@media print{body{background:white;padding:0}.toolbar{display:none}.cover{-webkit-print-color-adjust:exact;print-color-adjust:exact}th,.section-summary,.kpi{print-color-adjust:exact;-webkit-print-color-adjust:exact}.report-section{padding:10px 0}}</style></head><body>'+
- '<div class="toolbar">Relatório gerado. Clique em <button onclick="window.print()">SALVAR COMO PDF / IMPRIMIR</button> e escolha “Salvar como PDF”.</div>'+
- '<section class="cover"><div class="eyebrow">MLK COLLEGE FORMATION · RELATÓRIO ADMINISTRATIVO</div><h1>XIV SEMINÁRIO DE ESCATOLOGIA<br>E BATALHA ESPIRITUAL 2026</h1><div class="sub">O PALCO ESTÁ PRONTO · Controle de inscrições e pagamentos</div><p>Emitido em '+safe(time)+' · 04 a 06 de dezembro de 2026</p><div class="kpis">'+[
-  ["INSCRITOS",data.all.length],["PAGAMENTOS CONFIRMADOS",data.confirmed.length],["PAGAMENTOS PENDENTES",data.pending.length],
-  ["ARRECADADO",money(data.paid)],["A RECEBER",money(data.due)],["TOTAL DE INSCRIÇÕES",money(data.total)]
- ].map(([label,value])=>'<div class="kpi"><span>'+safe(label)+'</span><b>'+safe(value)+'</b></div>').join("")+'</div><p class="foot">Este documento contém dados pessoais de participantes e destina-se exclusivamente à organização do seminário.</p></section>'+blocks+'</body></html>';
+ const date=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
+ const most=Math.max(1,...sections.map(s=>s.rows.length));
+ const rowFont=Math.max(4,Math.min(9,Math.floor(90/most)));
+ const rows=s=>s.rows.length?s.rows.map(r=>'<tr><td>'+safe(r.registration_code)+'</td><td>'+safe(r.full_name)+'</td><td>'+safe(r.phone)+'</td><td>'+safe(money(Number(r.amount_cents)??10000))+'</td></tr>').join(""):'<tr><td colspan="4">Nenhum participante</td></tr>';
+ const blocks=sections.map(s=>'<section><div class="section-title"><b>'+safe(s.title.replace("LISTA GERAL DE INSCRITOS","TOTAL DE INSCRITOS").replace("INSCRIÇÕES CONFIRMADAS","CONFIRMADOS").replace("INSCRIÇÕES PENDENTES","PENDENTES"))+'</b><span>'+s.rows.length+' pessoas</span></div><p>'+safe(s.amountLabel)+': <strong>'+safe(money(s.amount))+'</strong></p><table><thead><tr><th>Nº</th><th>NOME</th><th>WHATSAPP</th><th>VALOR</th></tr></thead><tbody>'+rows(s)+'</tbody></table></section>').join("");
+ return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Inscrições Escatologia 2026 — A4</title><style>'+
+ '@page{size:A4 landscape;margin:5mm}*{box-sizing:border-box}html,body{margin:0;background:#fff;color:#162338;font-family:Arial,sans-serif}body{padding:5mm}.toolbar{padding:12px;background:#eff2f6;margin-bottom:10px}button{background:#162338;color:#fff;border:0;padding:10px;font-weight:bold}.header{background:#14233b;color:white;padding:12px 15px;border-top:4px solid #c9a265}.eyebrow{color:#e3bf84;font-size:9px;letter-spacing:1.3px;font-weight:bold}.header h1{font-size:17px;margin:7px 0 2px}.header p{font-size:9px;color:#dde3ef;margin:3px 0}.stats{display:flex;gap:7px;margin:7px 0 12px}.stat{border:1px solid #d6dce6;border-left:3px solid #be9658;padding:5px 8px;flex:1}.stat span{display:block;font-size:8px;color:#566779}.stat b{display:block;font-size:13px}.lists{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;align-items:start}section{min-width:0;border:1px solid #d6dce6}.section-title{background:#182b47;color:white;padding:8px;font-size:10px;display:flex;justify-content:space-between;gap:5px}.section-title span{white-space:nowrap}section p{background:#f1e9dd;margin:0;padding:6px 8px;font-size:9px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:'+rowFont+'px}th{background:#ecf0f5;color:#37455a;font-size:'+Math.max(4,rowFont-1)+'px;text-align:left}td,th{border-bottom:1px solid #e3e7ed;padding:3px 2px;overflow-wrap:anywhere;vertical-align:top}th:nth-child(1){width:8%}th:nth-child(2){width:48%}th:nth-child(3){width:27%}th:nth-child(4){width:17%}.footer{font-size:8px;color:#657487;margin-top:7px}@media print{body{padding:0}.toolbar{display:none}.header,.section-title,.stat{print-color-adjust:exact;-webkit-print-color-adjust:exact}thead{display:table-header-group}section{break-inside:avoid}} </style></head><body>'+
+ '<div class="toolbar"><button onclick="window.print()">SALVAR EM PDF / IMPRIMIR</button> · Formato A4 horizontal, uma página. Se necessário, ajuste a escala de impressão para caber em uma folha.</div>'+
+ '<header class="header"><div class="eyebrow">MLK COLLEGE FORMATION · RELATÓRIO ADMINISTRATIVO</div><h1>XIV SEMINÁRIO DE ESCATOLOGIA E BATALHA ESPIRITUAL 2026</h1><p>O PALCO ESTÁ PRONTO · Gerado em '+safe(date)+' · Evento: 04 a 06 de dezembro de 2026</p></header>'+
+ '<div class="stats">'+[["TOTAL DE INSCRITOS",data.all.length],["CONFIRMADOS",data.confirmed.length],["PENDENTES",data.pending.length],["ARRECADADO",money(data.paid)],["A RECEBER",money(data.due)],["TOTAL PREVISTO",money(data.total)]].map(([label,val])=>'<div class="stat"><span>'+safe(label)+'</span><b>'+safe(val)+'</b></div>').join("")+'</div>'+
+ '<main class="lists">'+blocks+'</main><div class="footer">Documento confidencial · cada pessoa aparece na lista total e em apenas uma lista de situação financeira.</div></body></html>';
 }
 function makePremiumPdf(all){
- const data=reportData(all), sections=reportSectionData(data), money=cents=>fmt.format(cents/100);
- const pdf=new window.jspdf.jsPDF({orientation:"landscape",unit:"mm",format:"a3",compress:true});
- if(typeof pdf.autoTable!=="function")throw Error("Biblioteca de tabelas PDF indisponível.");
- const W=pdf.internal.pageSize.getWidth(),H=pdf.internal.pageSize.getHeight();
- const ink=[19,31,51],gold=[199,159,91],white=[255,255,255],muted=[101,115,134];
- const date=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
- const fill=(rgb)=>pdf.setFillColor(...rgb);
- const textColor=(rgb)=>pdf.setTextColor(...rgb);
- const valueCard=(x,y,w,h,label,value)=>{
-  fill([34,49,72]);pdf.roundedRect(x,y,w,h,3,3,"F");
-  pdf.setDrawColor(85,102,125);pdf.roundedRect(x,y,w,h,3,3,"S");
-  textColor([198,209,223]);pdf.setFont("helvetica","bold");pdf.setFontSize(9);pdf.text(label,x+8,y+13);
-  textColor([245,219,161]);pdf.setFontSize(21);pdf.text(String(value),x+8,y+31);
- };
- // Capa premium, sem depender de imagens externas.
- fill(ink);pdf.rect(0,0,W,H,"F");
- fill(gold);pdf.rect(0,0,W,7,"F");
- fill([28,43,65]);pdf.rect(0,H-47,W,47,"F");
- textColor([227,198,142]);pdf.setFont("helvetica","bold");pdf.setFontSize(12);
- pdf.text("MLK COLLEGE FORMATION  /  RELATÓRIO ADMINISTRATIVO",23,31);
- textColor(white);pdf.setFontSize(30);pdf.text("XIV SEMINÁRIO DE ESCATOLOGIA",23,61);
- pdf.setFontSize(22);pdf.text("E BATALHA ESPIRITUAL 2026",23,74);
- textColor([220,226,235]);pdf.setFontSize(14);pdf.setFont("helvetica","normal");
- pdf.text("O PALCO ESTÁ PRONTO  |  Controle de inscrições e pagamentos",23,90);
- fill(gold);pdf.rect(23,101,66,1.5,"F");
- pdf.setFontSize(10);pdf.text("Evento: 04 a 06 de dezembro de 2026   •   Emitido em: "+date,23,114);
- const cw=(W-59)/3, gap=6;
- const stats=[
-  ["INSCRITOS",data.all.length],
-  ["CONFIRMADOS",data.confirmed.length],
-  ["PENDENTES",data.pending.length],
-  ["ARRECADADO",money(data.paid)],
-  ["A RECEBER",money(data.due)],
-  ["TOTAL DE INSCRIÇÕES",money(data.total)]
- ];
+ const data=reportData(all),sections=reportSectionData(data),money=cents=>fmt.format(cents/100);
+ const pdf=new window.jspdf.jsPDF({orientation:"landscape",unit:"mm",format:"a4",compress:true});
+ const W=297,H=210,ink=[20,35,59],gold=[198,156,90];
+ const fill=(c)=>pdf.setFillColor(...c),color=(c)=>pdf.setTextColor(...c);
+ const now=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"});
+ fill(ink);pdf.rect(0,0,W,38,"F");fill(gold);pdf.rect(0,0,W,3,"F");
+ color([226,191,132]);pdf.setFont("helvetica","bold");pdf.setFontSize(8);
+ pdf.text("MLK COLLEGE FORMATION  |  RELATÓRIO ADMINISTRATIVO",8,12);
+ color([255,255,255]);pdf.setFontSize(15);
+ pdf.text("XIV SEMINÁRIO DE ESCATOLOGIA E BATALHA ESPIRITUAL 2026",8,21);
+ color([216,223,235]);pdf.setFont("helvetica","normal");pdf.setFontSize(8);
+ pdf.text("O PALCO ESTÁ PRONTO  |  04 a 06 de dezembro de 2026  |  Emitido: "+now,8,30);
+ const stats=[["INSCRITOS",data.all.length],["CONFIRMADOS",data.confirmed.length],["PENDENTES",data.pending.length],["ARRECADADO",money(data.paid)],["A RECEBER",money(data.due)],["TOTAL PREVISTO",money(data.total)]];
+ const gap=3,cardW=(W-16-5*gap)/6;
  stats.forEach(([label,value],i)=>{
-  const col=i%3,row=Math.floor(i/3);
-  valueCard(23+col*(cw+gap),134+row*54,cw,45,label,value);
+  const x=8+i*(cardW+gap);
+  fill([242,245,249]);pdf.roundedRect(x,41,cardW,19,1.5,1.5,"F");
+  color([91,105,124]);pdf.setFont("helvetica","bold");pdf.setFontSize(6.4);pdf.text(label,x+3,48);
+  color(ink);pdf.setFontSize(11);pdf.text(String(value),x+3,56);
  });
- textColor([206,213,226]);pdf.setFontSize(9);
- pdf.text("Documento confidencial. Contém dados pessoais destinados exclusivamente à organização do evento.",23,H-24);
- const headings=["Nº","PARTICIPANTE","WHATSAPP","E-MAIL","DATA","ORIGEM / RESPONSÁVEL","PAGAMENTO","STATUS","VALOR","COMPROVANTE"];
- const widths={0:{cellWidth:15},1:{cellWidth:53},2:{cellWidth:28},3:{cellWidth:62},4:{cellWidth:29},5:{cellWidth:73},6:{cellWidth:25},7:{cellWidth:25},8:{cellWidth:25},9:{cellWidth:32}};
- const sectionHeader=(section)=>{
-  fill(ink);pdf.rect(0,0,W,40,"F");
-  fill(section.color);pdf.rect(0,0,7,40,"F");
-  textColor([229,202,151]);pdf.setFont("helvetica","bold");pdf.setFontSize(9);
-  pdf.text("RELATÓRIO "+section.index+" / 03   ·   ESCATOLOGIA 2026",16,13);
-  textColor(white);pdf.setFontSize(19);pdf.text(section.title,16,29);
- };
- sections.forEach((section)=>{
-  pdf.addPage();
-  sectionHeader(section);
-  textColor(muted);pdf.setFont("helvetica","normal");pdf.setFontSize(10);
-  pdf.text(section.description,16,49);
-  fill([242,237,228]);pdf.roundedRect(15,55,W-30,19,2,2,"F");
-  textColor(ink);pdf.setFont("helvetica","bold");pdf.setFontSize(11);
-  pdf.text("PARTICIPANTES: "+section.rows.length,21,67);
-  pdf.text(section.amountLabel+": "+money(section.amount),W-21,67,{align:"right"});
-  const rows=section.rows.map(r=>[
-   clean(r.registration_code),clean(r.full_name),clean(r.phone),clean(r.email),
-   niceDate(r.created_at),reportMode(r),r.payment_method==="entrance"?"Na entrada":"PIX",
-   r.payment_status==="confirmed"?"Confirmado":"Pendente",
-   money(Number(r.amount_cents)??10000),reportProof(r)
-  ]);
-  if(!rows.length){
-   fill([246,248,251]);pdf.roundedRect(15,82,W-30,24,2,2,"F");
-   textColor(muted);pdf.setFontSize(11);pdf.text("Nenhuma inscrição nesta categoria.",23,97);
-  }else{
-   pdf.autoTable({
-    head:[headings],body:rows,startY:81,margin:{top:48,bottom:17,left:15,right:15},
-    theme:"striped",showHead:"everyPage",rowPageBreak:"avoid",
-    styles:{font:"helvetica",fontSize:7.6,cellPadding:2.7,overflow:"linebreak",valign:"middle",textColor:ink,lineWidth:.08,lineColor:[221,225,230]},
-    headStyles:{fillColor:ink,textColor:white,fontStyle:"bold",fontSize:7.5,cellPadding:3.5},
-    alternateRowStyles:{fillColor:[246,248,251]},
-    columnStyles:widths,
-    didDrawPage:(ctx)=>{if(ctx.pageNumber>1)sectionHeader(section);}
-   });
-  }
- });
- const count=pdf.internal.getNumberOfPages();
- for(let n=1;n<=count;n++){
-  pdf.setPage(n);
-  pdf.setDrawColor(215,220,227);pdf.line(15,H-13,W-15,H-13);
-  textColor(muted);pdf.setFont("helvetica","normal");pdf.setFontSize(8);
-  pdf.text("MLK COLLEGE FORMATION  •  Relatório confidencial  •  "+date,15,H-8);
-  pdf.text("PÁGINA "+n+" / "+count,W-15,H-8,{align:"right"});
+ const colsGap=4,colsW=(W-16-2*colsGap)/3,top=66,bottom=202,usable=bottom-top-19;
+ const maxRows=Math.max(1,...sections.map(s=>s.rows.length));
+ // Calcula a altura das linhas para encaixar cada lista inteira em uma única A4.
+ const rowH=Math.min(5.2,usable/maxRows);
+ const fontSize=Math.max(2.8,Math.min(7.2,rowH*1.6));
+ const dense=maxRows>45;
+ const widths=[9,colsW*0.45,colsW*0.26,colsW*0.17];
+ function fittedText(txt,width,size){
+  const raw=String(txt||"");
+  pdf.setFontSize(size);
+  // Ajusta horizontalmente o texto, sem ocultar nomes.
+  const w=pdf.getTextWidth(raw);
+  if(w<=width)return {value:raw,font:size};
+  return {value:raw,font:Math.max(2, size*width/w)};
  }
+ sections.forEach((s,i)=>{
+  const x=8+i*(colsW+colsGap);
+  fill(ink);pdf.roundedRect(x,top,colsW,12,1.5,1.5,"F");
+  color([255,255,255]);pdf.setFont("helvetica","bold");pdf.setFontSize(9);
+  const heading=i===0?"TOTAL DE INSCRITOS":i===1?"CONFIRMADOS":"PENDENTES";
+  pdf.text(heading,x+3,top+5);
+  pdf.setFontSize(7);pdf.text(String(s.rows.length)+" pessoas",x+colsW-3,top+5,{align:"right"});
+  fill([239,233,222]);pdf.rect(x,top+12,colsW,9,"F");
+  color(ink);pdf.setFontSize(7);
+  pdf.text(money(s.amount),x+colsW-3,top+18,{align:"right"});
+  pdf.text(s.amountLabel,x+3,top+18);
+  const colNames=["Nº","NOME","WHATSAPP","VALOR"];
+  let at=x;
+  fill([227,232,239]);pdf.rect(x,top+21,colsW,6,"F");
+  colNames.forEach((name,k)=>{color(ink);pdf.setFont("helvetica","bold");pdf.setFontSize(5.9);pdf.text(name,at+1,top+25);at+=widths[k]});
+  const bodyStart=top+27,bodyH=bottom-bodyStart-3;
+  const effectiveRowH=s.rows.length?Math.min(5.2,bodyH/s.rows.length):5.2;
+  const currentFont=Math.max(2.5,Math.min(7.1,effectiveRowH*1.5));
+  s.rows.forEach((r,k)=>{
+   const y=bodyStart+k*effectiveRowH;
+   if(k%2===0){fill([247,249,251]);pdf.rect(x,y,colsW,effectiveRowH,"F");}
+   const values=[r.registration_code,r.full_name,r.phone,money(Number(r.amount_cents)??10000)];
+   let xx=x;
+   values.forEach((v,col)=>{
+    color(ink);pdf.setFont("helvetica",col===1?"bold":"normal");
+    const txt=fittedText(v,widths[col]-2,currentFont);
+    pdf.setFontSize(txt.font);
+    pdf.text(txt.value,xx+1,y+effectiveRowH*.73);
+    xx+=widths[col];
+   });
+  });
+  if(!s.rows.length){color([101,114,130]);pdf.setFont("helvetica","italic");pdf.setFontSize(8);pdf.text("Nenhum participante",x+3,bodyStart+8);}
+  pdf.setDrawColor(217,224,233);pdf.rect(x,top,colsW,bottom-top);
+ });
+ color([98,111,129]);pdf.setFont("helvetica","normal");pdf.setFontSize(7);
+ pdf.text("DOCUMENTO CONFIDENCIAL  ·  Cada pessoa aparece na lista geral e na respectiva situação de pagamento.",8,207);
  return pdf;
 }
 async function exportPdf(){
@@ -256,9 +235,9 @@ async function exportPdf(){
    return;
   }
   const pdf=makePremiumPdf(all),blob=pdf.output("blob"),url=URL.createObjectURL(blob);
-  if(viewer){viewer.location.replace(url);viewer.focus();setMsg("Relatório PDF completo aberto: lista geral, confirmados e pendentes.");}
+  if(viewer){viewer.location.replace(url);viewer.focus();setMsg("PDF A4 de uma página aberto com total, confirmados e pendentes.");}
   else{
-   const a=document.createElement("a");a.href=url;a.download="relatorio-premium-inscricoes-escatologia-2026.pdf";
+   const a=document.createElement("a");a.href=url;a.download="relatorio-unico-A4-inscricoes-escatologia-2026.pdf";
    document.body.append(a);a.click();a.remove();setMsg("Relatório PDF completo gerado. Confira seus downloads.");
   }
  }catch(err){
