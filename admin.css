@@ -19,3 +19,12 @@
 .responsible-tab.selected .responsible-tab-count{background:#9c7840;color:#fff}
 .responsible-count{font:500 12px Montserrat,Arial,sans-serif;color:var(--gold2);margin-top:10px}
 @media(max-width:750px){.responsible-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.responsible-tab{font-size:10px;padding:10px}.responsible-section{margin-top:20px}}
+
+/* Cartões de indicadores como filtros acessíveis */
+.metrics>.metric-filter,.metrics>.metric-revenue{border:1px solid var(--line);background:#121b2b;padding:21px;min-width:0;text-align:left;font-family:inherit}
+.metrics>.metric-filter{color:inherit;cursor:pointer;transition:border-color .2s,background .2s,transform .2s}
+.metrics>.metric-filter:hover{border-color:#b18d50;background:#1c2b40}
+.metrics>.metric-filter.active{border:2px solid #d5b16b;padding:20px;background:#223047;box-shadow:inset 0 0 0 1px #d5b16b35}
+.metrics>.metric-filter:focus-visible{outline:3px solid #f2dba9;outline-offset:3px}
+.metrics>.metric-filter small{display:block;color:#c9c7c2;margin-top:9px;font-size:10px;line-height:1.4}
+@media(max-width:750px){.metrics>.metric-filter,.metrics>.metric-revenue{padding:15px}.metrics>.metric-filter.active{padding:14px}.metrics>.metric-filter strong,.metrics>.metric-revenue strong{font-size:23px}}
